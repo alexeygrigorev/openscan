@@ -100,18 +100,21 @@ Pipeline **proven at scale**; watermark-free **by construction and verified**.
 The remaining acceptance step for "corners feel right in production" is a
 5-minute scan of a receipt + a contract on a real Play-services phone.
 <!-- review-2026-10-03 -->
-## Per-card review & watermark audit (2026-10-03)
+<!-- v3 full-coverage re-review same day; see PROVENANCE.md "v3" for the integrity record -->
+## Per-card review & watermark audit (2026-10-03, v3 — full visual coverage)
 
-All 95 montage cards (detected overlay | output page/crop | ground-truth quad) and 45
-unique PDF page renders were reviewed; machine-readable verdicts and the full integrity
-record are in [`eval/judgments/PROVENANCE.md`](eval/judgments/PROVENANCE.md).
+All **95 montage cards** (detected overlay | output page/crop | ground-truth quad) were
+re-read **individually at full resolution** after the earlier image-tooling outage; PDF page
+renders were verified programmatically (audit below) and visually via each card's page
+panel. Machine-readable verdicts, per-card evidence notes and the integrity record are in
+[`eval/judgments/PROVENANCE.md`](eval/judgments/PROVENANCE.md).
 
-**Review-integrity note.** The judges' image-viewing tooling went down mid-review
+**Review-integrity note.** The first review attempt lost image tooling mid-pass
 ("unsupported call" on every image read after ~23:58). Two judge passes that nevertheless
 reported *visual* verdicts were quarantined: both made claims impossible against the
-recorded run data (a "tight quad matching ground truth" on `id_card_08`, whose GT quad
-lies almost entirely off-canvas with recorded IoU 0.0 / corner error 56.8 %; FAIL
-verdicts on `passport_10` at IoU 0.968). Nothing from those passes is used below.
+recorded run data (a "tight quad matching ground truth" on `id_card_08`, whose GT quad lies
+almost entirely off-canvas with recorded IoU 0.0 / corner error 56.8 %; FAIL verdicts on
+`passport_10` at IoU 0.968). Nothing from those passes is used below.
 
 **Post-push spot-check (2026-10-03, image reads restored).** Direct visual re-check of six
 previously programmatic-only artifacts — overlays `id_card_08`, `id_card_10`, `passport_01`,
@@ -121,16 +124,39 @@ a true false-detection fail (full-frame fallback on a cluttered non-document sce
 recorded IoU 0.0); `id_card_10` a tight pass, `passport_01` shows the documented full-frame
 over-detection; `receipt_05.pdf` renders fully readable and watermark-free on exact A4.
 
-| Batch | Cards | Method | Result |
-|---|---|---|---|
-| A (00–31) | 32 | visual (pre-outage), 0 mismatches vs run data | 14 pass / 4 fail / 6 no-detection / 8 non-document → **58 %** pass on true documents |
-| B (32–63) | 32 | visual | 11 pass / 15 fail / 6 non-document → **42 %** pass on true documents |
-| C (64–94) | 31 | programmatic only (IoU / corner error / GT validity / quad-area sanity) | 8 pass, 3 pass-loose, 6 fail, 1 no-detection, 5 GT-artifact, 8 no-GT (6 plausible, 2 suspect) |
+**v3 full re-read.** With reads stable, every one of the 95 cards was re-read one at a time
+at full resolution (an earlier contact-sheet pass was discarded after cross-checking exposed
+panel-attribution shifts between visually similar neighbour cards), and **every verdict was
+cross-checked against the run record** — detect flags for all 95, corner-error/IoU on the 28
+GT cards: **0 mismatches**. The spot-check findings above are all reproduced; batch-level
+corrections vs the earlier partial reviews: `14_invoice_05` FAIL→pass (quad hugs the
+receipt), `36_form_06` PASS→fail (quad is full-frame, not slip corners), `51_article_07` /
+`53_document_04` descriptions were swapped (51 = framed certificate pass, 53 = Wikipedia-tea
+infobox-only fail).
 
-**Failure modes (visual batches):** full-frame fallback when the document is not the
-dominant object; sub-object lock-in (logo, stamp box, the face photo inside an ID, a
-phone); degenerate off-frame quads; genuine no-detections concentrated on documents whose
-boundary is not fully inside the frame (crumpled receipts, manuscripts).
+**Results over the 81 cards that contain a real document** (14 of 95 Commons hits are
+portraits/photos/a screenshot — flagged `na_non_document`, graceful no-crash failure):
+
+| Outcome | Cards | Share |
+|---|---|---|
+| Tight quad + clean readable page | **33** | 41 % |
+| Usable page, loose/partial quad | 8 | 10 % |
+| Wrong or degenerate quad | 32 | 40 % |
+| No detection | 8 | 10 % |
+
+Per family (pass/partial/fail/no-detection): receipts 4/0/0/3 · invoices 5/0/2/0 · forms
+2/0/2/0 · letters 3/0/1/3 · contracts 2/0/0/0 · articles 4/0/3/0 · business cards 2/0/5/0 ·
+documents 1/0/1/0 · ID cards 3/2/4/1 · passports 4/1/4/1 · driver licences 3/1/6/0 ·
+notebooks 0/4/4/0 (plus 1 non-document).
+
+**Reading:** reliable on **full-page paper photos that dominate the frame** — receipts,
+invoices, forms, letters, the core scanning case (14/19 tight passes; its 3 receipt misses
+are close-ups whose boundary lies outside the frame). Unreliable on **small plastic cards in
+cluttered scenes** (ID/passport/licence: 10/30 tight) — failure modes: full-frame fallback,
+sub-object lock-in (logo, wax seal, uniform-invoice stamp, the portrait photo inside an ID, a
+phone), degenerate off-frame quads. Notebooks (flat-lay photos where the notebook is a
+fraction of the frame) are weakest: 0 tight, 4 usable. This is the known ceiling of the
+test-only OpenCV recipe, not of the app: production uses ML Kit's trained detector.
 
 **Ground-truth validity caveat (manifest-verified):** 7 of the 28 MIDV GT quads are fully
 or partly off-canvas (corners outside the 1080×1920 frame), so their IoU ≈ 0 measures GT
@@ -141,5 +167,6 @@ p90 0.959, 7/21 ≥ 0.9** (the raw all-28 figures above include the broken quads
 (pdftotext) — a watermark could only be raster baked into the bitmap, and the production
 `PdfExporter` draws nothing but the scanned image; all 45 spot-checked page renders decode
 at exact A4 pixel sizes (910×1287 / 1287×910, aspect error ≤ 0.0001) with no uniform
-overlay band in corner/center/footer statistics. One page was visually confirmed clean
-before tooling failed; broader *visual* watermark confirmation is explicitly not claimed.
+overlay band in corner/center/footer statistics. In the v3 re-read every detected card's
+PDF-page panel was also viewed directly: pages are clean renders of the warped crop, no
+marks.

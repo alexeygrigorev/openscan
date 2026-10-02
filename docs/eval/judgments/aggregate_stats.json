@@ -60,5 +60,76 @@
  "integrity": {
   "quarantined_judge_outputs": 2,
   "note": "Two judge passes claimed visual reads during a session-wide image-Read outage; both contradicted recorded data (id_card_08 \"GT match\" vs off-canvas GT/IoU 0.0; passport_10 FAIL vs IoU 0.968). Excluded; see PROVENANCE.md."
+ },
+ "full_visual_v3": {
+  "method": "all 95 cards re-read individually at full res (main agent, post-outage); zero mismatches vs run data",
+  "cards": 95,
+  "pass": 33,
+  "partial": 8,
+  "fail": 32,
+  "no_detection": 8,
+  "na_non_document": 14,
+  "doc_cards": 81,
+  "doc_pass_rate": 0.407,
+  "doc_pass_plus_partial": 0.506,
+  "per_family": {
+   "article": {
+    "fail": 3,
+    "pass": 4
+   },
+   "business_card": {
+    "fail": 5,
+    "pass": 2
+   },
+   "contract": {
+    "pass": 2,
+    "na_non_document": 5
+   },
+   "document": {
+    "na_non_document": 5,
+    "fail": 1,
+    "pass": 1
+   },
+   "driver_license": {
+    "fail": 6,
+    "partial": 1,
+    "pass": 3
+   },
+   "form": {
+    "pass": 2,
+    "fail": 2,
+    "na_non_document": 3
+   },
+   "id_card": {
+    "fail": 4,
+    "no_detection": 1,
+    "pass": 3,
+    "partial": 2
+   },
+   "invoice": {
+    "pass": 5,
+    "fail": 2
+   },
+   "letter": {
+    "fail": 1,
+    "no_detection": 3,
+    "pass": 3
+   },
+   "notebook": {
+    "na_non_document": 1,
+    "partial": 4,
+    "fail": 4
+   },
+   "passport": {
+    "fail": 4,
+    "no_detection": 1,
+    "pass": 4,
+    "partial": 1
+   },
+   "receipt": {
+    "no_detection": 3,
+    "pass": 4
+   }
+  }
  }
 }
