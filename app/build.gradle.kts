@@ -89,6 +89,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.uiautomator)
+    androidTestImplementation(libs.opencv)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
