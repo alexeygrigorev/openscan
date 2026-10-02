@@ -64,14 +64,14 @@
  "full_visual_v3": {
   "method": "all 95 cards re-read individually at full res (main agent, post-outage); zero mismatches vs run data",
   "cards": 95,
-  "pass": 33,
+  "pass": 32,
   "partial": 8,
-  "fail": 32,
+  "fail": 33,
   "no_detection": 8,
   "na_non_document": 14,
   "doc_cards": 81,
-  "doc_pass_rate": 0.407,
-  "doc_pass_plus_partial": 0.506,
+  "doc_pass_rate": 0.395,
+  "doc_pass_plus_partial": 0.494,
   "per_family": {
    "article": {
     "fail": 3,
@@ -130,6 +130,7 @@
     "no_detection": 3,
     "pass": 4
    }
-  }
+  },
+  "correction": "2026-10-03 pixel-verified: form_07 pass->fail (hallucinated description); see EVALUATION.md correction + form_07_pixel_refutation.md"
  }
 }

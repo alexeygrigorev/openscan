@@ -375,9 +375,9 @@
    "card": "37_form_07.jpg",
    "idx": 37,
    "slug": "form_07",
-   "corners": "pass",
-   "page": "pass",
-   "note": "Employee Performance Evaluation; quad tight on paper; PDF readable, slight tilt. Judge B agrees.",
+   "corners": "fail",
+   "page": "fail",
+   "note": "PIXEL-REFUTED 2026-10-03: original pass note (\"Employee Performance Evaluation; quad tight on paper\") described a different image — the input is a dark wine-cellar photo (barrels/plant, no document). Quad covers right 42% of frame; PDF page is the same dark crop. See form_07_pixel_refutation.md and EVALUATION.md correction.",
    "source": "main",
    "prog_detect_ok": true
   },
@@ -982,8 +982,8 @@
    "pass": 3
   },
   "form": {
-   "pass": 2,
-   "fail": 2,
+   "pass": 1,
+   "fail": 3,
    "na_non_document": 3
   },
   "id_card": {

@@ -54,23 +54,3 @@ therefore treated as unproven regardless of its internal consistency.
 - Judge-B spot-check agreement: 24 of its 27 cards reproduced exactly at full res; 57/58
   corroborated by GT corner error (27.8 % / 19.7 %).
 
-## v3 (2026-10-03, post-outage session) — full first-party visual coverage
-
-- `verdict_final_v3_fullres.json` — ALL 95 cards re-read **individually at full resolution** by the
-  main agent once image reads were working again (every read this session rendered; zero Read
-  failures to disclose). The 3-card contact sheets used early in the re-judge proved unreliable —
-  panel attribution shifted between visually-similar neighbour cards (ID/passport/licence scenes
-  repeat) — and were abandoned after cross-checking exposed 9 verdict-vs-data contradictions.
-  Every disputed card was then re-read one at a time.
-- `notes_fullres_rereads.md` — per-card evidence notes; entries marked `[full-res verified]`.
-- **Acceptance test applied:** every visual verdict cross-checked against the recorded run data —
-  detect flags for all 95, corner_err_pct/IoU on the 28 GT cards. Result: **0 mismatches**
-  (including `passport_10` PASS @ IoU 0.968 and `driver_license_05` PARTIAL / `06` PASS @ IoU
-  0.74/0.75 — exactly the cards that disqualified the quarantined v2).
-- Supersedes `verdict_cards_a.json` (agrees everywhere except `14_invoice_05`: FAIL_LOOSE →
-  PASS_MINOR), `verdict_cards_b.json` (corrections: `36_form_06` full-frame not slip-tight;
-  `42` description; `51_article_07` and `53_document_04` descriptions were swapped — 51 is the
-  framed certificate PASS, 53 is the Wikipedia-tea-infobox FAIL), and `verdict_cards_c_prog.json`
-  (batch C now visually confirmed).
-- Judge-B spot-check agreement: 24 of its 27 cards reproduced exactly at full res; 57/58
-  corroborated by GT corner error (27.8 % / 19.7 %).
