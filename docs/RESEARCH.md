@@ -1,4 +1,4 @@
-# Scanlet — Research Summary (2026-10-02)
+# OpenScan — Research Summary (2026-10-02)
 
 Condensed from the full research pass (CamScanner feature audit, competitor
 gap analysis, naming collision checks). This is the "why" behind
@@ -28,7 +28,7 @@ gap analysis, naming collision checks). This is the "why" behind
 
 | Option | Verdict |
 |---|---|
-| **ML Kit Document Scanner** (chosen for v0.1) | One call gives viewfinder, auto-capture, edge detection, crop UI, filters, retake. Minimal app-size impact per Google and **no CAMERA permission** (capture runs inside Play services) — which is how Scanlet ships a zero-permission manifest. Trade-offs: needs Play services, fixed UI. |
+| **ML Kit Document Scanner** (chosen for v0.1) | One call gives viewfinder, auto-capture, edge detection, crop UI, filters, retake. Minimal app-size impact per Google and **no CAMERA permission** (capture runs inside Play services) — which is how OpenScan ships a zero-permission manifest. Trade-offs: needs Play services, fixed UI. |
 | CameraX + OpenCV own pipeline (roadmap M2) | grayscale → blur → Canny → findContours → `approxPolyDP` → perspective warp. Needed for the F-Droid/de-Googled flavor and full UX control. Real work: detection robustness is exactly what commercial SDKs charge for; manual corner adjustment must be excellent. |
 
 Supporting stack: Kotlin 2.x + Jetpack Compose + Material 3 (MVVM, single
@@ -45,7 +45,7 @@ The four "no"s that counter CamScanner's four biggest complaints:
 > **No watermark. No ads. No account. No cloud.**
 
 Proof, not promises: the built APK has **no `INTERNET` permission** — Google's
-libraries merge network permissions into every app, and Scanlet strips them
+libraries merge network permissions into every app, and OpenScan strips them
 from the merged manifest, so the app *cannot* exfiltrate anything (and the
 library telemetry it bundles cannot either). Verify on any build:
 `aapt2 dump badging app-release.apk | grep uses-permission` — the only line
@@ -56,16 +56,16 @@ document scanner specifically (see the 2019 incident).
 Target audiences: displaced Microsoft Lens users, privacy-conscious / FOSS
 communities (r/fossdroid), anyone scanning IDs and contracts who balks at
 cloud scanning, and the self-hosting crowd (Paperless-ngx push is on the
-roadmap — user-configured, never a Scanlet account).
+roadmap — user-configured, never a OpenScan account).
 
 ## 4. Naming
 
-**Scanlet** — "scan" + "-let" (booklet, applet): two syllables, purpose
+**OpenScan** — "scan" + "-let" (booklet, applet): two syllables, purpose
 obvious in store search, small/fast/friendly. Collision-checked 2026-10-02:
 
-- Google Play / App Store: no scanner (or any) app named Scanlet found.
-- GitHub: no project named scanlet; `alexeygrigorev/scanlet` free.
-- Only footprint anywhere: `Scanlet = 0x37`, a symbology enum constant in
+- Google Play / App Store: no scanner (or any) app named OpenScan found.
+- GitHub: no project named openscan; `alexeygrigorev/openscan` free.
+- Only footprint anywhere: `OpenScan = 0x37`, a symbology enum constant in
   the Zebra Scanner SDK — not a product.
 
 Runners-up: **Paperlet** (clean, warm, 3 syllables), **Unmarked**

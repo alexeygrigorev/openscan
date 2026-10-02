@@ -179,7 +179,7 @@ jobs:
         run: scripts/check-apk-signing.sh --variant debug --apk app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename debug APK
-        run: mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/scanlet-${{ steps.version.outputs.name }}-debug.apk"
+        run: mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/openscan-${{ steps.version.outputs.name }}-debug.apk"
 
       # Release signing activates in app/build.gradle.kts only when
       # ANDROID_RELEASE_KEYSTORE_BASE64 is present; publish always provides
@@ -221,18 +221,18 @@ jobs:
         run: |
           set -euo pipefail
           mv app/build/outputs/apk/release/app-release.apk \
-            "app/build/outputs/apk/release/scanlet-${{ steps.version.outputs.name }}-release.apk"
+            "app/build/outputs/apk/release/openscan-${{ steps.version.outputs.name }}-release.apk"
           mv app/build/outputs/bundle/release/app-release.aab \
-            "app/build/outputs/bundle/release/scanlet-${{ steps.version.outputs.name }}-release.aab"
+            "app/build/outputs/bundle/release/openscan-${{ steps.version.outputs.name }}-release.aab"
 
       - name: Upload validated artifacts for the publish job
         uses: actions/upload-artifact@v7
         with:
-          name: scanlet-release-assets
+          name: openscan-release-assets
           path: |
-            app/build/outputs/apk/debug/scanlet-*-debug.apk
-            app/build/outputs/apk/release/scanlet-*-release.apk
-            app/build/outputs/bundle/release/scanlet-*-release.aab
+            app/build/outputs/apk/debug/openscan-*-debug.apk
+            app/build/outputs/apk/release/openscan-*-release.apk
+            app/build/outputs/bundle/release/openscan-*-release.aab
           retention-days: 7
           if-no-files-found: error
 
@@ -292,7 +292,7 @@ jobs:
       - name: Download artifacts from this exact workflow run
         uses: actions/download-artifact@v7
         with:
-          name: scanlet-release-assets
+          name: openscan-release-assets
           path: release-assets
 
       - name: Create the GitHub release

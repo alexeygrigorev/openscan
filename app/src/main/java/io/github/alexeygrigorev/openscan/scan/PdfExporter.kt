@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.scan
+package io.github.alexeygrigorev.openscan.scan
 
 import android.graphics.Color
 import android.graphics.Paint
@@ -11,7 +11,7 @@ import kotlin.math.min
 /**
  * Builds multi-page PDFs from page JPEGs with the framework PdfDocument.
  * Pages are placed centered on an A4 sheet (595×842 pt, swapped for
- * landscape scans) — and, as everywhere in Scanlet, nothing is ever stamped
+ * landscape scans) — and, as everywhere in OpenScan, nothing is ever stamped
  * on top of them.
  */
 object PdfExporter {

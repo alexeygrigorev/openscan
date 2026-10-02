@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.ui
+package io.github.alexeygrigorev.openscan.ui
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -37,10 +37,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.alexeygrigorev.scanlet.data.DocumentsRepository
-import io.github.alexeygrigorev.scanlet.data.PageEntity
-import io.github.alexeygrigorev.scanlet.scan.Images
-import io.github.alexeygrigorev.scanlet.scan.PageOcr
+import io.github.alexeygrigorev.openscan.data.DocumentsRepository
+import io.github.alexeygrigorev.openscan.data.PageEntity
+import io.github.alexeygrigorev.openscan.scan.Images
+import io.github.alexeygrigorev.openscan.scan.PageOcr
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -63,13 +63,13 @@ jobs:
           apk=app/build/outputs/apk/debug/app-debug.apk
           test -f "$apk" || { echo "::error::debug APK missing at $apk"; exit 1; }
           # VERSION_NAME is unset on branch/PR builds (no release tag): the
-          # published artifact name falls back to `scanlet-dev-debug.apk`.
-          mv "$apk" "app/build/outputs/apk/debug/scanlet-${VERSION_NAME:-dev}-debug.apk"
+          # published artifact name falls back to `openscan-dev-debug.apk`.
+          mv "$apk" "app/build/outputs/apk/debug/openscan-${VERSION_NAME:-dev}-debug.apk"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
-          name: scanlet-debug-apk
-          path: app/build/outputs/apk/debug/scanlet-*-debug.apk
+          name: openscan-debug-apk
+          path: app/build/outputs/apk/debug/openscan-*-debug.apk
           retention-days: 7
           if-no-files-found: error

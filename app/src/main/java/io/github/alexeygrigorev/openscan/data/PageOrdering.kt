@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.data
+package io.github.alexeygrigorev.openscan.data
 
 /**
  * Pure page-order math, kept out of the ViewModel so it can be unit-tested.

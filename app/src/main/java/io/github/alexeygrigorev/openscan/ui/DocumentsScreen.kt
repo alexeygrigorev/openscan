@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.ui
+package io.github.alexeygrigorev.openscan.ui
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -43,8 +43,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.alexeygrigorev.scanlet.data.DocumentSummary
-import io.github.alexeygrigorev.scanlet.data.DocumentsRepository
+import io.github.alexeygrigorev.openscan.data.DocumentSummary
+import io.github.alexeygrigorev.openscan.data.DocumentsRepository
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -101,7 +101,7 @@ fun DocumentsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Scanlet") },
+                title = { Text("OpenScan") },
                 actions = {
                     IconButton(onClick = {
                         importLauncher.launch(

@@ -1,4 +1,4 @@
-# Releasing Scanlet
+# Releasing OpenScan
 
 How to cut a release: tag main, run one workflow, get a GitHub Release with a
 signed AAB for Google Play and APKs for sideloading. Everything is automated
@@ -42,8 +42,8 @@ Rules that keep that table true:
 ```bash
 mkdir -p ~/keystores
 keytool -genkeypair -v \
-  -keystore ~/keystores/scanlet-upload.keystore \
-  -alias scanlet \
+  -keystore ~/keystores/openscan-upload.keystore \
+  -alias openscan \
   -keyalg RSA -keysize 4096 -validity 10000 \
   -storetype PKCS12
 ```
@@ -54,7 +54,7 @@ is never committed; CI receives it through a secret.
 ### 2. Read the certificate SHA-256
 
 ```bash
-keytool -list -v -keystore ~/keystores/scanlet-upload.keystore -alias scanlet \
+keytool -list -v -keystore ~/keystores/openscan-upload.keystore -alias openscan \
   | grep 'SHA256:'
 ```
 
@@ -65,16 +65,16 @@ form).
 
 ### 3. Set the GitHub secrets
 
-Five secrets, all on `alexeygrigorev/scanlet`:
+Five secrets, all on `alexeygrigorev/openscan`:
 
 ```bash
-base64 -w0 ~/keystores/scanlet-upload.keystore \
-  | gh secret set ANDROID_RELEASE_KEYSTORE_BASE64 --repo alexeygrigorev/scanlet
+base64 -w0 ~/keystores/openscan-upload.keystore \
+  | gh secret set ANDROID_RELEASE_KEYSTORE_BASE64 --repo alexeygrigorev/openscan
 
-gh secret set ANDROID_RELEASE_STORE_PASSWORD --repo alexeygrigorev/scanlet
-gh secret set ANDROID_RELEASE_KEY_ALIAS      --repo alexeygrigorev/scanlet   # e.g. scanlet
-gh secret set ANDROID_RELEASE_KEY_PASSWORD   --repo alexeygrigorev/scanlet   # for PKCS12 usually == store password
-gh secret set ANDROID_RELEASE_CERT_SHA256    --repo alexeygrigorev/scanlet   # from keytool above
+gh secret set ANDROID_RELEASE_STORE_PASSWORD --repo alexeygrigorev/openscan
+gh secret set ANDROID_RELEASE_KEY_ALIAS      --repo alexeygrigorev/openscan   # e.g. openscan
+gh secret set ANDROID_RELEASE_KEY_PASSWORD   --repo alexeygrigorev/openscan   # for PKCS12 usually == store password
+gh secret set ANDROID_RELEASE_CERT_SHA256    --repo alexeygrigorev/openscan   # from keytool above
 ```
 
 `ANDROID_RELEASE_CERT_SHA256` is what makes a wrong-keystore build fail
@@ -135,14 +135,14 @@ design.
 
 ### 5. Collect the artifacts
 
-The GitHub Release at `https://github.com/alexeygrigorev/scanlet/releases/tag/vX.Y.Z`
+The GitHub Release at `https://github.com/alexeygrigorev/openscan/releases/tag/vX.Y.Z`
 carries:
 
-- `scanlet-X.Y.Z-release.aab` — upload this in Play Console (Production or
+- `openscan-X.Y.Z-release.aab` — upload this in Play Console (Production or
   a testing track).
-- `scanlet-X.Y.Z-release.apk` — signed release APK for direct sideloading
+- `openscan-X.Y.Z-release.apk` — signed release APK for direct sideloading
   and for a future F-Droid bundle.
-- `scanlet-X.Y.Z-debug.apk` — for QA installs; do not distribute.
+- `openscan-X.Y.Z-debug.apk` — for QA installs; do not distribute.
 
 ## Troubleshooting
 
@@ -167,7 +167,7 @@ fingerprint secret are out of sync (re-generated keystore, typo, wrong
 alias). Compare fingerprints:
 
 ```bash
-keytool -list -v -keystore ~/keystores/scanlet-upload.keystore -alias scanlet | grep 'SHA256:'
+keytool -list -v -keystore ~/keystores/openscan-upload.keystore -alias openscan | grep 'SHA256:'
 unzip -p app-release.apk META-INF/* -x META-INF/MANIFEST.MF >/dev/null  # (or use CI's log)
 apksigner verify --print-certs app-release.apk | grep 'SHA-256'
 ```

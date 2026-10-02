@@ -1,6 +1,6 @@
-# Scanlet — Feature Catalog
+# OpenScan — Feature Catalog
 
-Scanlet is a free, open-source document scanner for Android: CamScanner's core
+OpenScan is a free, open-source document scanner for Android: CamScanner's core
 workflow with **no watermarks, no ads, no account, and no cloud**. Everything
 runs on-device.
 
@@ -19,7 +19,7 @@ current status.
 
 ## Feature matrix
 
-| Feature | CamScanner free tier | Priority | Scanlet status |
+| Feature | CamScanner free tier | Priority | OpenScan status |
 |---|---|---|---|
 | Auto edge detection | Free (with ads) | P0 | ✅ shipped (ML Kit scanner) |
 | Perspective correction | Free | P0 | ✅ shipped |
@@ -51,11 +51,11 @@ current status.
 | Book scan (flattening) | Premium | P2 | ⏳ backlog (hard problem — defer) |
 | QR / barcode scanning | Free | P2 | ⏳ backlog (ML Kit barcode) |
 | Low-light / night enhancement | Partially premium | P2 | ⏳ backlog |
-| Optional user-configured sync (WebDAV / Nextcloud / Paperless-ngx) | Cloud-tied (their cloud) | P2 | ⏳ backlog — self-hosted push, never a Scanlet account |
+| Optional user-configured sync (WebDAV / Nextcloud / Paperless-ngx) | Cloud-tied (their cloud) | P2 | ⏳ backlog — self-hosted push, never a OpenScan account |
 | F-Droid flavor (own CameraX+OpenCV pipeline) | n/a | P2 | ⏳ backlog (de-Googled devices) |
 | PDF → Word/Excel conversion | Premium (cloud) | Skip | ❌ server-bound |
 | Fax | Paid credits | Skip | ❌ |
-| Cloud account + sync (a Scanlet cloud) | ~200–400 MB free | Skip | ❌ no accounts, ever |
+| Cloud account + sync (a OpenScan cloud) | ~200–400 MB free | Skip | ❌ no accounts, ever |
 | Collaboration (shared folders, co-editing) | Premium | Skip | ❌ server-bound |
 | Table extraction to Excel | Premium | Skip | ❌ server-bound |
 
@@ -64,7 +64,7 @@ current status.
 1. **Never a watermark.** Exported PDFs and images are clean, always. There is
    one tier and it is free.
 2. **No ads, no tracking, no account.** The built APK has **no `INTERNET`
-   permission** (Google's libraries request it; Scanlet strips it from the
+   permission** (Google's libraries request it; OpenScan strips it from the
    merged manifest): the app *cannot* phone home, and the library telemetry
    it bundles cannot either. Capture happens inside Google Play services;
    export uses the system share sheet. Any future exception must go through a

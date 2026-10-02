@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/derive-version.sh — single source of truth for Scanlet's Android
+# scripts/derive-version.sh — single source of truth for OpenScan's Android
 # `versionCode`/`versionName`. app/build.gradle.kts reads the VERSION_CODE /
 # VERSION_NAME environment variables; release CI derives those values with
 # THIS script rather than any caller re-implementing the git commands.
@@ -17,7 +17,7 @@
 #     "0.1.0"). It is only defined ON a release tag: without --ref this
 #     command requires exactly one release tag at HEAD and fails
 #     otherwise. Dev builds have no release name — callers substitute
-#     their own placeholder (CI uses `scanlet-dev-debug.apk`).
+#     their own placeholder (CI uses `openscan-dev-debug.apk`).
 #
 # USAGE
 #   derive-version.sh version-code [--ref TAG]   # print the integer versionCode
@@ -37,11 +37,11 @@ set -euo pipefail
 
 # ROOT_DIR can be overridden for tests (the self-test points every
 # derivation, including end-to-end `main` re-invocations, at a sandbox repo).
-ROOT_DIR="${SCANLET_DERIVE_VERSION_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+ROOT_DIR="${OPENSCAN_DERIVE_VERSION_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 usage() {
   cat <<'EOF'
-scripts/derive-version.sh — derive Scanlet's Android versionCode/versionName
+scripts/derive-version.sh — derive OpenScan's Android versionCode/versionName
 
 USAGE
   derive-version.sh version-code [--ref TAG]
@@ -223,9 +223,9 @@ run_self_test() {
   # same answers as the internal functions, verified in a FRESH process
   # aimed at the sandbox repo via the ROOT_DIR override.
   check_eq "main --ref v0.1.1 version-code (end-to-end)" "2" \
-    "$(SCANLET_DERIVE_VERSION_ROOT="$repo" bash "${BASH_SOURCE[0]}" version-code --ref v0.1.1)"
+    "$(OPENSCAN_DERIVE_VERSION_ROOT="$repo" bash "${BASH_SOURCE[0]}" version-code --ref v0.1.1)"
   check_eq "main --ref v0.1.1 version-name (end-to-end)" "0.1.1" \
-    "$(SCANLET_DERIVE_VERSION_ROOT="$repo" bash "${BASH_SOURCE[0]}" version-name --ref v0.1.1)"
+    "$(OPENSCAN_DERIVE_VERSION_ROOT="$repo" bash "${BASH_SOURCE[0]}" version-name --ref v0.1.1)"
 
   # --- semver-ascending order: v0.1.10 must sort AFTER v0.1.9 -------------
   git -C "$repo" commit --quiet --allow-empty -m "c3"
@@ -256,7 +256,7 @@ run_self_test() {
   check_fails "unknown tag fails" cmd_version_code v9.9.9
   check_fails "non-v shape fails" cmd_version_name 0.1.0
   # ...and through main(), the flag path a caller actually exercises:
-  if SCANLET_DERIVE_VERSION_ROOT="$repo" bash "${BASH_SOURCE[0]}" version-code --ref not-a-tag >/dev/null 2>&1; then
+  if OPENSCAN_DERIVE_VERSION_ROOT="$repo" bash "${BASH_SOURCE[0]}" version-code --ref not-a-tag >/dev/null 2>&1; then
     printf '  FAIL: main --ref with an unknown tag unexpectedly succeeded\n' >&2
     failures=$((failures + 1))
   else

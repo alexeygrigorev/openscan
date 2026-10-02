@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.scan
+package io.github.alexeygrigorev.openscan.scan
 
 import android.app.Activity
 import android.content.Intent
@@ -12,7 +12,7 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 /**
  * Wrapper around the ML Kit document scanner (Play services module). The
  * scanner provides its own capture UI with auto edge detection, cropping and
- * cleanup filters — which is why Scanlet itself needs no CAMERA permission.
+ * cleanup filters — which is why OpenScan itself needs no CAMERA permission.
  *
  * Launch with [androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult];
  * the result Intent goes through [pageUris].

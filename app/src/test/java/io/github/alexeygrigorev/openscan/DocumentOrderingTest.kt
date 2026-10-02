@@ -1,7 +1,7 @@
-package io.github.alexeygrigorev.scanlet
+package io.github.alexeygrigorev.openscan
 
-import io.github.alexeygrigorev.scanlet.data.DocumentEntity
-import io.github.alexeygrigorev.scanlet.data.PageEntity
+import io.github.alexeygrigorev.openscan.data.DocumentEntity
+import io.github.alexeygrigorev.openscan.data.PageEntity
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

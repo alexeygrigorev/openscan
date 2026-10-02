@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.data
+package io.github.alexeygrigorev.openscan.data
 
 import androidx.room.Entity
 import androidx.room.Embedded

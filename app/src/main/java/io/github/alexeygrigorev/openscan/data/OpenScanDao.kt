@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.data
+package io.github.alexeygrigorev.openscan.data
 
 import androidx.room.Dao
 import androidx.room.Insert
@@ -8,7 +8,7 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface ScanletDao {
+interface OpenScanDao {
 
     @Insert
     suspend fun insertDocument(document: DocumentEntity): Long

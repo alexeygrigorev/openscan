@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-    namespace = "io.github.alexeygrigorev.scanlet"
+    namespace = "io.github.alexeygrigorev.openscan"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.alexeygrigorev.scanlet"
+        applicationId = "io.github.alexeygrigorev.openscan"
         minSdk = 26
         targetSdk = 36
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()

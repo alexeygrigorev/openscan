@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet
+package io.github.alexeygrigorev.openscan
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,16 +11,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import io.github.alexeygrigorev.scanlet.data.AppContainer
-import io.github.alexeygrigorev.scanlet.ui.CaptureScreen
-import io.github.alexeygrigorev.scanlet.ui.CaptureViewModel
-import io.github.alexeygrigorev.scanlet.ui.DocumentScreen
-import io.github.alexeygrigorev.scanlet.ui.DocumentViewModel
-import io.github.alexeygrigorev.scanlet.ui.DocumentsScreen
-import io.github.alexeygrigorev.scanlet.ui.DocumentsViewModel
-import io.github.alexeygrigorev.scanlet.ui.EditScreen
-import io.github.alexeygrigorev.scanlet.ui.EditViewModel
-import io.github.alexeygrigorev.scanlet.ui.theme.ScanletTheme
+import io.github.alexeygrigorev.openscan.data.AppContainer
+import io.github.alexeygrigorev.openscan.ui.CaptureScreen
+import io.github.alexeygrigorev.openscan.ui.CaptureViewModel
+import io.github.alexeygrigorev.openscan.ui.DocumentScreen
+import io.github.alexeygrigorev.openscan.ui.DocumentViewModel
+import io.github.alexeygrigorev.openscan.ui.DocumentsScreen
+import io.github.alexeygrigorev.openscan.ui.DocumentsViewModel
+import io.github.alexeygrigorev.openscan.ui.EditScreen
+import io.github.alexeygrigorev.openscan.ui.EditViewModel
+import io.github.alexeygrigorev.openscan.ui.theme.OpenScanTheme
 
 object Routes {
     const val DOCUMENTS = "documents"
@@ -36,17 +36,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val container = (application as ScanletApp).container
+        val container = (application as OpenScanApp).container
         setContent {
-            ScanletTheme {
-                ScanletNavHost(container)
+            OpenScanTheme {
+                OpenScanNavHost(container)
             }
         }
     }
 }
 
 @Composable
-fun ScanletNavHost(container: AppContainer) {
+fun OpenScanNavHost(container: AppContainer) {
     val navController = rememberNavController()
     val appContext = LocalContext.current.applicationContext
     NavHost(navController = navController, startDestination = Routes.DOCUMENTS) {

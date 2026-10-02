@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Scanlet"
+rootProject.name = "OpenScan"
 include(":app")

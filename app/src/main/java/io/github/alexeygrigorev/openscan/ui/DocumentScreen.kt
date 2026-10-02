@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.ui
+package io.github.alexeygrigorev.openscan.ui
 
 import android.content.Context
 import android.content.Intent
@@ -58,14 +58,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.alexeygrigorev.scanlet.data.DocumentEntity
-import io.github.alexeygrigorev.scanlet.data.DocumentFiles
-import io.github.alexeygrigorev.scanlet.data.DocumentsRepository
-import io.github.alexeygrigorev.scanlet.data.PageEntity
-import io.github.alexeygrigorev.scanlet.scan.Images
-import io.github.alexeygrigorev.scanlet.scan.JpegExporter
-import io.github.alexeygrigorev.scanlet.scan.PageOcr
-import io.github.alexeygrigorev.scanlet.scan.PdfExporter
+import io.github.alexeygrigorev.openscan.data.DocumentEntity
+import io.github.alexeygrigorev.openscan.data.DocumentFiles
+import io.github.alexeygrigorev.openscan.data.DocumentsRepository
+import io.github.alexeygrigorev.openscan.data.PageEntity
+import io.github.alexeygrigorev.openscan.scan.Images
+import io.github.alexeygrigorev.openscan.scan.JpegExporter
+import io.github.alexeygrigorev.openscan.scan.PageOcr
+import io.github.alexeygrigorev.openscan.scan.PdfExporter
 import java.io.File
 import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers

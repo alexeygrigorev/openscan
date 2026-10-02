@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.ui.theme
+package io.github.alexeygrigorev.openscan.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -33,7 +33,7 @@ private val DarkColors = darkColorScheme(
 )
 
 @Composable
-fun ScanletTheme(content: @Composable () -> Unit) {
+fun OpenScanTheme(content: @Composable () -> Unit) {
     val darkTheme = isSystemInDarkTheme()
     val context = LocalContext.current
     val colorScheme = when {

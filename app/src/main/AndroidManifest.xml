@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-      Scanlet's own manifest declares NO permissions:
+      OpenScan's own manifest declares NO permissions:
       - The ML Kit document scanner runs inside Google Play services, which
         performs the capture itself, so no CAMERA permission is required.
       - ML Kit text recognition ships with the bundled model, so it is fully
@@ -11,7 +11,7 @@
 
       Google's transitive libraries (Firebase data transport telemetry pulled
       in by ML Kit) merge INTERNET and ACCESS_NETWORK_STATE into every app
-      that uses them. Scanlet explicitly REMOVES both: the built APK cannot
+      that uses them. OpenScan explicitly REMOVES both: the built APK cannot
       open network sockets, so no scan content — and no library telemetry —
       can ever leave the device. The only uses-permission in the merged
       manifest is the package-scoped DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
@@ -27,13 +27,13 @@
         tools:node="remove" />
 
     <application
-        android:name=".ScanletApp"
+        android:name=".OpenScanApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Scanlet">
+        android:theme="@style/Theme.OpenScan">
 
         <activity
             android:name=".MainActivity"

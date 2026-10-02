@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.ui
+package io.github.alexeygrigorev.openscan.ui
 
 import android.net.Uri
 import androidx.activity.ComponentActivity
@@ -31,9 +31,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.alexeygrigorev.scanlet.data.DocumentsRepository
-import io.github.alexeygrigorev.scanlet.scan.DocumentScanner
-import io.github.alexeygrigorev.scanlet.scan.await
+import io.github.alexeygrigorev.openscan.data.DocumentsRepository
+import io.github.alexeygrigorev.openscan.scan.DocumentScanner
+import io.github.alexeygrigorev.openscan.scan.await
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch

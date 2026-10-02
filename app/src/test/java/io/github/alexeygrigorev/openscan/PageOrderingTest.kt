@@ -1,8 +1,8 @@
-package io.github.alexeygrigorev.scanlet
+package io.github.alexeygrigorev.openscan
 
-import io.github.alexeygrigorev.scanlet.data.PageEntity
-import io.github.alexeygrigorev.scanlet.data.PageOrdering.move
-import io.github.alexeygrigorev.scanlet.data.reindex
+import io.github.alexeygrigorev.openscan.data.PageEntity
+import io.github.alexeygrigorev.openscan.data.PageOrdering.move
+import io.github.alexeygrigorev.openscan.data.reindex
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

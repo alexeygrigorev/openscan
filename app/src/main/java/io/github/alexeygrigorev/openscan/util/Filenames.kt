@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.util
+package io.github.alexeygrigorev.openscan.util
 
 /**
  * A document title must survive as a file name in share intents (PDF export),
@@ -12,5 +12,5 @@ fun safeFileName(title: String): String {
         .replace(Regex("\\s+"), " ")
         .trim()
         .take(80)
-    return cleaned.ifEmpty { "scanlet" }
+    return cleaned.ifEmpty { "openscan" }
 }

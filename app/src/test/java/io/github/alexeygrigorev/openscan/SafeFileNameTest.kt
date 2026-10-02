@@ -1,6 +1,6 @@
-package io.github.alexeygrigorev.scanlet
+package io.github.alexeygrigorev.openscan
 
-import io.github.alexeygrigorev.scanlet.util.safeFileName
+import io.github.alexeygrigorev.openscan.util.safeFileName
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -31,8 +31,8 @@ class SafeFileNameTest {
 
     @Test
     fun `never returns empty`() {
-        assertEquals("scanlet", safeFileName("///"))
-        assertEquals("scanlet", safeFileName("   "))
-        assertEquals("scanlet", safeFileName(""))
+        assertEquals("openscan", safeFileName("///"))
+        assertEquals("openscan", safeFileName("   "))
+        assertEquals("openscan", safeFileName(""))
     }
 }

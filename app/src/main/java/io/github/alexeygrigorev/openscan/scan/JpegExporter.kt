@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.scan
+package io.github.alexeygrigorev.openscan.scan
 
 import java.io.File
 import java.io.OutputStream

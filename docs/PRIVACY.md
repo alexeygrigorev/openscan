@@ -1,24 +1,24 @@
-# Scanlet Privacy Policy
+# OpenScan Privacy Policy
 
 Last updated: 2026-10-02
 
-**Short version: Scanlet collects nothing. Your scans never leave your phone.**
+**Short version: OpenScan collects nothing. Your scans never leave your phone.**
 
 ## What we collect
 
-Nothing. Scanlet's own manifest declares no permissions, and the **built APK
+Nothing. OpenScan's own manifest declares no permissions, and the **built APK
 has no `INTERNET` permission**: it cannot open network sockets, so it is
 structurally unable to send your documents, analytics, crash reports, or any
 other data anywhere.
 
 Google's ML Kit libraries pull in Firebase data-transport telemetry, whose
 manifests merge `INTERNET` and `ACCESS_NETWORK_STATE` into every app that
-uses them. Scanlet explicitly removes both in its own manifest
+uses them. OpenScan explicitly removes both in its own manifest
 (`tools:node="remove"`) — verified on every built APK:
 
 ```bash
 aapt2 dump badging app-release.apk | grep uses-permission
-# uses-permission: name='io.github.alexeygrigorev.scanlet.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+# uses-permission: name='io.github.alexeygrigorev.openscan.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
 ```
 
 That single remaining entry is AndroidX's generated, package-scoped guard for
@@ -29,7 +29,7 @@ convention, not a capability.
 ## How it works without permissions
 
 - **Document capture** happens inside Google Play services (the ML Kit
-  document scanner module). Play services performs the camera work; Scanlet
+  document scanner module). Play services performs the camera work; OpenScan
   receives the scanned pages as local files and therefore never needs the
   camera permission itself.
 - **OCR** uses ML Kit Text Recognition with the bundled model: fully
@@ -52,17 +52,17 @@ data deletion — uninstall the app or delete a document in-app.**
 
 ## Open source
 
-The entire codebase is public: <https://github.com/alexeygrigorev/scanlet>.
+The entire codebase is public: <https://github.com/alexeygrigorev/openscan>.
 Anything this document claims is verifiable in source — including the single
 remaining permission line:
 
 ```bash
 aapt2 dump badging app-release.apk | grep uses-permission
-# uses-permission: name='io.github.alexeygrigorev.scanlet.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+# uses-permission: name='io.github.alexeygrigorev.openscan.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
 ```
 
 That is the one AndroidX receiver-guard entry documented above — nothing else.
 
 ## Contact
 
-Open an issue at <https://github.com/alexeygrigorev/scanlet/issues>.
+Open an issue at <https://github.com/alexeygrigorev/openscan/issues>.

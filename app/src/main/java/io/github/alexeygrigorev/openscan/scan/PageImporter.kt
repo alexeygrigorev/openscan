@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.scan
+package io.github.alexeygrigorev.openscan.scan
 
 import android.content.Context
 import android.graphics.Bitmap

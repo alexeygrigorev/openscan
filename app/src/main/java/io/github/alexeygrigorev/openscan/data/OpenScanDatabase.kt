@@ -1,4 +1,4 @@
-package io.github.alexeygrigorev.scanlet.data
+package io.github.alexeygrigorev.openscan.data
 
 import android.content.Context
 import androidx.room.Database
@@ -11,8 +11,8 @@ import java.io.File
     version = 1,
     exportSchema = false,
 )
-abstract class ScanletDatabase : RoomDatabase() {
-    abstract fun scanletDao(): ScanletDao
+abstract class OpenScanDatabase : RoomDatabase() {
+    abstract fun openscanDao(): OpenScanDao
 }
 
 /**
@@ -36,15 +36,15 @@ class DocumentFiles(context: Context) {
     fun documentDir(documentId: Long): File = File(documentsDir, documentId.toString())
 
     fun sharedPdfFile(title: String): File =
-        File(exportsDir, "${io.github.alexeygrigorev.scanlet.util.safeFileName(title)}.pdf")
+        File(exportsDir, "${io.github.alexeygrigorev.openscan.util.safeFileName(title)}.pdf")
 
     /** Single-page JPEG export. Pages are stored as JPEGs, so this is a plain copy. */
     fun sharedImageFile(title: String): File =
-        File(exportsDir, "${io.github.alexeygrigorev.scanlet.util.safeFileName(title)}.jpg")
+        File(exportsDir, "${io.github.alexeygrigorev.openscan.util.safeFileName(title)}.jpg")
 
     /** Multi-page JPEG export: a zip of page-001.jpg, page-002.jpg, … */
     fun sharedZipFile(title: String): File =
-        File(exportsDir, "${io.github.alexeygrigorev.scanlet.util.safeFileName(title)}.zip")
+        File(exportsDir, "${io.github.alexeygrigorev.openscan.util.safeFileName(title)}.zip")
 
     fun deleteDocumentFiles(documentId: Long) {
         documentDir(documentId).deleteRecursively()
@@ -59,10 +59,10 @@ class DocumentFiles(context: Context) {
 class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
-    val database: ScanletDatabase =
-        Room.databaseBuilder(appContext, ScanletDatabase::class.java, "scanlet.db").build()
+    val database: OpenScanDatabase =
+        Room.databaseBuilder(appContext, OpenScanDatabase::class.java, "openscan.db").build()
 
     val files = DocumentFiles(appContext)
-    val importer = io.github.alexeygrigorev.scanlet.scan.PageImporter(appContext)
-    val repository = DocumentsRepository(database.scanletDao(), files, importer)
+    val importer = io.github.alexeygrigorev.openscan.scan.PageImporter(appContext)
+    val repository = DocumentsRepository(database.openscanDao(), files, importer)
 }

@@ -1,7 +1,7 @@
-package io.github.alexeygrigorev.scanlet.data
+package io.github.alexeygrigorev.openscan.data
 
 import android.net.Uri
-import io.github.alexeygrigorev.scanlet.scan.PageImporter
+import io.github.alexeygrigorev.openscan.scan.PageImporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -14,7 +14,7 @@ import java.util.Locale
  * private-storage files always move together.
  */
 class DocumentsRepository(
-    private val dao: ScanletDao,
+    private val dao: OpenScanDao,
     private val files: DocumentFiles,
     private val importer: PageImporter,
 ) {
@@ -77,12 +77,12 @@ class DocumentsRepository(
     /** Bakes a 90° clockwise rotation into the stored page JPEG. */
     suspend fun rotatePage(page: PageEntity) = withContext(Dispatchers.IO) {
         val source = files.pageFile(page.filePath)
-        val bitmap = io.github.alexeygrigorev.scanlet.scan.Images.decodeScaled(source, maxDim = 2600)
+        val bitmap = io.github.alexeygrigorev.openscan.scan.Images.decodeScaled(source, maxDim = 2600)
             ?: return@withContext
         val matrix = android.graphics.Matrix().apply { postRotate(90f) }
         val rotated = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         val dest = files.pageFile(page.documentId)
-        io.github.alexeygrigorev.scanlet.scan.Images.saveJpeg(rotated, dest)
+        io.github.alexeygrigorev.openscan.scan.Images.saveJpeg(rotated, dest)
         if (rotated !== bitmap) bitmap.recycle()
         rotated.recycle()
         dao.setPageFile(page.id, dest.absolutePath)

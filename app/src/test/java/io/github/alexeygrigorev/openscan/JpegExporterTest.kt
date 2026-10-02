@@ -1,6 +1,6 @@
-package io.github.alexeygrigorev.scanlet
+package io.github.alexeygrigorev.openscan
 
-import io.github.alexeygrigorev.scanlet.scan.JpegExporter
+import io.github.alexeygrigorev.openscan.scan.JpegExporter
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
