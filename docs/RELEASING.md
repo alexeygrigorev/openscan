@@ -48,6 +48,15 @@ keytool -genkeypair -v \
   -storetype PKCS12
 ```
 
+> **Current setup note (2026-10-02):** the live secrets were created before
+> the Scanlet→OpenScan rename, so the actual keystore on this machine is
+> `~/keystores/scanlet-release.keystore` with alias `scanlet` (password in
+> the sibling `scanlet-release.pass`, cert fingerprint in
+> `scanlet-release.certsha256`). The file name and alias are cosmetic — the
+> signing cert is what matters, and rotating the key before the first Play
+> upload would only risk breaking the configured secrets. Substitute the
+> real path/alias in the commands below if regenerating secrets.
+
 Back this file up somewhere safe (password manager / encrypted storage). It
 is never committed; CI receives it through a secret.
 
