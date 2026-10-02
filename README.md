@@ -36,7 +36,8 @@ camera — and gives it away for free. Every page you scan stays on your phone.
 - [ ] ID-card mode, whiteboard mode
 
 The full roadmap is in [docs/FEATURES.md](docs/FEATURES.md); the research behind it is in
-[docs/RESEARCH.md](docs/RESEARCH.md).
+[docs/RESEARCH.md](docs/RESEARCH.md), and how the features are proven to work is in
+[docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 ## Install
 
@@ -52,6 +53,7 @@ Requirements: JDK 17+ (21 recommended), Android SDK with platform 36.
 ```bash
 ./gradlew :app:assembleDebug        # debug APK
 ./gradlew :app:testDebugUnitTest    # unit tests
+./gradlew connectedDebugAndroidTest # batch pipeline E2E (device/emulator needed)
 ```
 
 Version numbers are derived from git tags — `app/build.gradle.kts` reads the

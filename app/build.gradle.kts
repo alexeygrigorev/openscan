@@ -17,6 +17,7 @@ android {
         targetSdk = 36
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -83,6 +84,10 @@ dependencies {
     implementation(libs.pdfbox.android)
 
     testImplementation(libs.junit)
+
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

@@ -51,9 +51,12 @@ class PageImporter(private val context: Context) {
 
     fun import(source: Uri, dest: File) {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(source)?.use { stream ->
+        val boundsStream = context.contentResolver.openInputStream(source)
+            ?: throw IllegalStateException("cannot open $source")
+        // Bounds-only decode returns null by design — it only fills outWidth/outHeight.
+        boundsStream.use { stream ->
             BitmapFactory.decodeStream(stream, null, bounds)
-        } ?: throw IllegalStateException("cannot open $source")
+        }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
             throw IllegalStateException("not a decodable image: $source")
         }
