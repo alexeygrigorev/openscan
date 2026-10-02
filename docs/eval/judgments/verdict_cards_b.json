@@ -1,0 +1,57 @@
+{
+  "batch": "batch_cards_b (cards2/32..63)",
+  "judge": "judge_corner_cards_batch_b",
+  "method": "visual Read of every card + pixel/run-data cross-check (run-1790975962988611308 results.json, report.json IoU, assignment overlay mapping)",
+  "disclosures": [
+    "Card 32's first Read returned '[Media removed]' (never rendered); re-read individually — verdict based on the re-read.",
+    "Initial multi-image batch reads of cards 58-63 suffered attribution shift (descriptions matched neighboring files' quads); cards 58-63 were re-read one-at-a-time and re-verdicted. A card-level yellow-pixel scan for the NO DETECTION placeholder produced false negatives (thin vertical label strips wash out when downsampled) — do not trust that scan; the placeholder is on card 60.",
+    "report.json rows match run-1790975962988611308 (id_card_05 iou 0.9263 etc.), so cards and report are from the SAME run — no run-mixing problem."
+  ],
+  "cards": [
+    {"pos": 32, "file": "form_02.jpg", "verdict": "FAIL", "note": "Quad extends well beyond the Employee Evaluation form into background; PDF page = near-full frame with desk/hand, not a tight scan. Content complete/readable."},
+    {"pos": 33, "file": "form_03.jpg", "verdict": "NA", "note": "Non-document input (meadow + footbridge). Quad ~full frame; page = same photo."},
+    {"pos": 34, "file": "form_04.jpg", "verdict": "NA", "note": "Non-document (tile mosaic). Quad ~frame with slight top inset."},
+    {"pos": 35, "file": "form_05.jpg", "verdict": "NA", "note": "Non-document (barrels/attic). Quad = arbitrary inset rectangle."},
+    {"pos": 36, "file": "form_06.jpg", "verdict": "PASS", "note": "Restaurant order slip; quad matches slip corners; page readable."},
+    {"pos": 37, "file": "form_07.jpg", "verdict": "PASS", "note": "Employee Performance Evaluation; quad on paper corners; page complete; minor residual tilt in page."},
+    {"pos": 38, "file": "business_card_01.jpg", "verdict": "FAIL", "note": "Quad locked onto small DSI logo bottom-left of card; PDF page = zoomed logo crop; card content lost."},
+    {"pos": 39, "file": "business_card_02.jpg", "verdict": "FAIL", "note": "Green/white/green sheet; quad captured bottom green band only; rest of sheet lost."},
+    {"pos": 40, "file": "business_card_03.jpg", "verdict": "FAIL", "note": "VISA2CHINA card on fabric; quad = full image frame; page = whole photo."},
+    {"pos": 41, "file": "business_card_04.jpg", "verdict": "FAIL", "note": "Same card centered; quad = full frame; page = whole photo."},
+    {"pos": 42, "file": "business_card_05.jpg", "verdict": "FAIL", "note": "Quad = left-third vertical strip at full height; page = strip with fabric margins."},
+    {"pos": 43, "file": "business_card_06.jpg", "verdict": "PASS", "note": "CS techniek card; quad on corners (minor overhang); page upright, complete, readable."},
+    {"pos": 44, "file": "business_card_07.jpg", "verdict": "PASS", "note": "Card small in frame; quad tight; page large, upright, complete."},
+    {"pos": 45, "file": "article_01.jpg", "verdict": "FAIL", "note": "B&W mill photo; quad degenerate — two vertices off-frame; page = tilted arbitrary crop."},
+    {"pos": 46, "file": "article_02.jpg", "verdict": "FAIL", "note": "Naturalization certificate fills frame; quad locked onto red wax seal; page = zoomed seal, document lost."},
+    {"pos": 47, "file": "article_03.jpg", "verdict": "FAIL", "note": "Missouri broadside; quad = inner text block; title header and seal cropped out of page."},
+    {"pos": 48, "file": "article_04.jpg", "verdict": "PASS", "note": "Patriotic Roll fills frame; quad = frame; page upright, complete."},
+    {"pos": 49, "file": "article_05.jpg", "verdict": "PASS", "note": "Haeckel plate (full-bleed); quad ~frame; page complete, upright."},
+    {"pos": 50, "file": "article_06.jpg", "verdict": "PASS", "note": "1908 withdrawal card fills frame; quad ~frame; page complete, borders intact."},
+    {"pos": 51, "file": "article_07.jpg", "verdict": "FAIL", "note": "Wikipedia Tea screenshot; quad = infobox card only (cleanly warped) but ~80% of page content lost."},
+    {"pos": 52, "file": "document_03.jpg", "verdict": "NA", "note": "Non-document (daisy). Quad tilted rect, one vertex off-frame."},
+    {"pos": 53, "file": "document_04.jpg", "verdict": "PASS", "note": "Framed certificate; quad on frame corners; page upright, complete, readable (wood frame included)."},
+    {"pos": 54, "file": "document_05.jpg", "verdict": "NA", "note": "Non-document (lace fabric). Quad = small top-left patch."},
+    {"pos": 55, "file": "document_06.jpg", "verdict": "NA", "note": "Non-document (table-tennis player). Quad = tilted diamond, vertices off-frame."},
+    {"pos": 56, "file": "document_07.jpg", "verdict": "PASS", "note": "Sepia print fills frame; quad ~frame; page complete, upright."},
+    {"pos": 57, "file": "id_card_01.jpg", "verdict": "FAIL", "iou": 0.2258, "note": "Detected quad = full frame vs GT card polygon; no PDF page for this file (CROP panel = whole desk)."},
+    {"pos": 58, "file": "id_card_02.jpg", "verdict": "FAIL", "iou": 0.3709, "note": "Quad = full-width band (y 23%..100%), card a small part; candy/ruler/knife included; no PDF page."},
+    {"pos": 59, "file": "id_card_03.jpg", "verdict": "FAIL", "iou": 0.501, "note": "Top corners on card but bottom vertices extend ~35% below card into hand/floor; crop has large empty region."},
+    {"pos": 60, "file": "id_card_04.jpg", "verdict": "FAIL", "iou": null, "note": "NO DETECTION (run ok:false, 'no quad found'); card shows placeholder + GT."},
+    {"pos": 61, "file": "id_card_05.jpg", "verdict": "PASS", "iou": 0.9263, "note": "Quad ~GT (corner_err 1.3%); crop large, upright, complete, very readable."},
+    {"pos": 62, "file": "id_card_06.jpg", "verdict": "PASS", "iou": 0.8163, "note": "Marginal: top-right vertex off card onto keyboard, but crop complete, upright, readable (corner_err 3.6%)."},
+    {"pos": 63, "file": "id_card_07.jpg", "verdict": "FAIL", "iou": 0.0, "note": "Antarctica wall chart; quad = full-width band cutting off bottom flags strip; IoU 0.0 vs GT."}
+  ],
+  "tally": {"total": 32, "pass": 11, "fail": 15, "na_non_document": 6, "pass_rate_on_documents": 0.42},
+  "failure_modes": [
+    "Full-frame fallback: document not dominant in frame -> quad = whole frame or arbitrary band (32, 40, 41, 42, 57, 58, 63). Dominant mode.",
+    "Salient sub-object lock-in: logo (38), wax seal (46), infobox (51), inner text block (47).",
+    "Degenerate quad with off-frame vertices (45).",
+    "No detection (60).",
+    "All id_card/driver_license/passport files have pdf_doc=false: PDFs were exported only for Wikimedia docs; MIDV outputs are crops only."
+  ],
+  "recommendations": [
+    "Exclude or separately report the 6 non-document inputs (33,34,35,52,54,55) — full-frame 'detections' on them inflate the 87/95 detection rate.",
+    "Tighten min-quad-area / max-quad-area vs frame and reject near-frame quads unless the document truly fills the frame.",
+    "Sanity-check quad against the largest bright/rectangular region; reject quads whose area is a tiny fraction (38, 46) or a thin band (39, 42)."
+  ]
+}

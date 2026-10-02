@@ -14,3 +14,5 @@ local.properties
 *.jks
 *.keystore
 .secrets/
+# local test corpus (third-party images, licenses vary) stays out of the repo
+/testdata/

@@ -1,0 +1,275 @@
+{
+ "batch": "batch_cards_a (cards2/00..31)",
+ "judge": "main-agent sheet rejudge (notes_rejudge_main.md), compiled to JSON",
+ "method": "visual Read of 3-card sheets in judgments/sheets_rejudge + run-data cross-check (results.json ok/quad, report.json IoU)",
+ "disclosures": [
+  "notes_rejudge_main.md contains duplicated sections (append ran twice); sections deduped when compiling - verdicts identical in both copies.",
+  "run-data consistency: 0 mismatches between compiled verdicts and results.json ok/quad flags.",
+  "Card 08/09 NO_DETECTION judged acceptable (document boundary not fully in frame - not a detector failure)."
+ ],
+ "cards": [
+  {
+   "pos": 0,
+   "file": "00_receipt_01.jpg",
+   "verdict": "NO_DETECTION",
+   "run_ok": false,
+   "iou_from_report": null,
+   "note": "crumpled hospital day-ticket; no quad, no PDF page (low-contrast edges)"
+  },
+  {
+   "pos": 1,
+   "file": "01_form_01.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "Russian medical form; quad tight; PDF page clean, deskewed, readable"
+  },
+  {
+   "pos": 2,
+   "file": "02_document_01.jpg",
+   "verdict": "NA_NON_DOCUMENT",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "portrait photo; arbitrary quad; warped portrait output"
+  },
+  {
+   "pos": 3,
+   "file": "03_document_02.jpg",
+   "verdict": "NA_NON_DOCUMENT",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "portrait photo; full-frame tilted quad"
+  },
+  {
+   "pos": 4,
+   "file": "04_receipt_02.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "Chinese railway refund receipt; quad tight; page readable"
+  },
+  {
+   "pos": 5,
+   "file": "05_receipt_03.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "Bankia receipt on dark bg; quad tight; page readable, deskewed"
+  },
+  {
+   "pos": 6,
+   "file": "06_receipt_04.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "Bankia receipt, low light; quad tight; page readable"
+  },
+  {
+   "pos": 7,
+   "file": "07_receipt_05.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "crumpled Jumbo long receipt; quad tracks paper; page readable"
+  },
+  {
+   "pos": 8,
+   "file": "08_receipt_06.jpg",
+   "verdict": "NO_DETECTION",
+   "run_ok": false,
+   "iou_from_report": null,
+   "note": "receipt close-up, edges outside frame; acceptable: no complete boundary in frame"
+  },
+  {
+   "pos": 9,
+   "file": "09_receipt_07.jpg",
+   "verdict": "NO_DETECTION",
+   "run_ok": false,
+   "iou_from_report": null,
+   "note": "bottom part of receipt only; full edge not in frame"
+  },
+  {
+   "pos": 10,
+   "file": "10_invoice_01.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "Starbucks receipt; quad tight; page readable"
+  },
+  {
+   "pos": 11,
+   "file": "11_invoice_02.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "Taipei 101 long receipt; quad tight; page readable"
+  },
+  {
+   "pos": 12,
+   "file": "12_invoice_03.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "long uniform invoice; quad tight; page readable"
+  },
+  {
+   "pos": 13,
+   "file": "13_invoice_04.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "Costco e-invoice; quad tight; page clean, readable"
+  },
+  {
+   "pos": 14,
+   "file": "14_invoice_05.jpg",
+   "verdict": "FAIL_LOOSE",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "narrow receipt on silvery fabric; quad ~2.5x receipt width; wide grey margins, content complete"
+  },
+  {
+   "pos": 15,
+   "file": "15_invoice_06.jpg",
+   "verdict": "FAIL_PARTIAL",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "quad locked onto top uniform-invoice stamp box; receipt body lost"
+  },
+  {
+   "pos": 16,
+   "file": "16_invoice_07.jpg",
+   "verdict": "FAIL_PARTIAL",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "quad = small tilted polygon around invoice number; rest of receipt lost"
+  },
+  {
+   "pos": 17,
+   "file": "17_contract_01.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "open two-page contract in binder; quad = full spread; page readable, complete"
+  },
+  {
+   "pos": 18,
+   "file": "18_contract_02.jpg",
+   "verdict": "NA_NON_DOCUMENT",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "group news photo (signing ceremony); quad ~ frame"
+  },
+  {
+   "pos": 19,
+   "file": "19_contract_03.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "open two-page contract; quad tight on spread; page clean readable"
+  },
+  {
+   "pos": 20,
+   "file": "20_contract_04.jpg",
+   "verdict": "NA_NON_DOCUMENT",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "room with flags/podium; arbitrary quad"
+  },
+  {
+   "pos": 21,
+   "file": "21_contract_05.jpg",
+   "verdict": "NA_NON_DOCUMENT",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "signing ceremony news photo; quad ~ frame"
+  },
+  {
+   "pos": 22,
+   "file": "22_contract_06.jpg",
+   "verdict": "NA_NON_DOCUMENT",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "portrait photo; partial arbitrary quad"
+  },
+  {
+   "pos": 23,
+   "file": "23_contract_07.jpg",
+   "verdict": "NA_NON_DOCUMENT",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "group ceremony photo; quad ~ frame"
+  },
+  {
+   "pos": 24,
+   "file": "24_letter_01.jpg",
+   "verdict": "FAIL_PARTIAL",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "Persian manuscript spread; quad = small box on text block; most of spread lost"
+  },
+  {
+   "pos": 25,
+   "file": "25_letter_02.jpg",
+   "verdict": "NO_DETECTION",
+   "run_ok": false,
+   "iou_from_report": null,
+   "note": "typewritten manuscript page; no quad"
+  },
+  {
+   "pos": 26,
+   "file": "26_letter_03.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "1812 handwritten letter; quad = frame; page complete, readable"
+  },
+  {
+   "pos": 27,
+   "file": "27_letter_04.jpg",
+   "verdict": "NO_DETECTION",
+   "run_ok": false,
+   "iou_from_report": null,
+   "note": "letter on envelope; no quad"
+  },
+  {
+   "pos": 28,
+   "file": "28_letter_05.jpg",
+   "verdict": "NO_DETECTION",
+   "run_ok": false,
+   "iou_from_report": null,
+   "note": "handwritten letter; no quad"
+  },
+  {
+   "pos": 29,
+   "file": "29_letter_06.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "1812 letter; quad = frame; page complete, readable"
+  },
+  {
+   "pos": 30,
+   "file": "30_letter_07.jpg",
+   "verdict": "PASS",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "old manuscript spread; quad ~ frame; page complete"
+  },
+  {
+   "pos": 31,
+   "file": "31_notebook_01.jpg",
+   "verdict": "NA_NON_DOCUMENT",
+   "run_ok": true,
+   "iou_from_report": null,
+   "note": "sepia portrait photo; degenerate small quad on hair (garbage output but no document present)"
+  }
+ ],
+ "tally": {
+  "FAIL_LOOSE": 1,
+  "FAIL_PARTIAL": 3,
+  "NA_NON_DOCUMENT": 8,
+  "NO_DETECTION": 6,
+  "PASS": 14
+ }
+}

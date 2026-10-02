@@ -99,3 +99,39 @@ adb pull /data/data/io.github.alexeygrigorev.openscan/files/eval out/
 Pipeline **proven at scale**; watermark-free **by construction and verified**.
 The remaining acceptance step for "corners feel right in production" is a
 5-minute scan of a receipt + a contract on a real Play-services phone.
+<!-- review-2026-10-03 -->
+## Per-card review & watermark audit (2026-10-03)
+
+All 95 montage cards (detected overlay | output page/crop | ground-truth quad) and 45
+unique PDF page renders were reviewed; machine-readable verdicts and the full integrity
+record are in [`eval/judgments/PROVENANCE.md`](eval/judgments/PROVENANCE.md).
+
+**Review-integrity note.** The judges' image-viewing tooling went down mid-review
+("unsupported call" on every image read after ~23:58). Two judge passes that nevertheless
+reported *visual* verdicts were quarantined: both made claims impossible against the
+recorded run data (a "tight quad matching ground truth" on `id_card_08`, whose GT quad
+lies almost entirely off-canvas with recorded IoU 0.0 / corner error 56.8 %; FAIL
+verdicts on `passport_10` at IoU 0.968). Nothing from those passes is used below.
+
+| Batch | Cards | Method | Result |
+|---|---|---|---|
+| A (00–31) | 32 | visual (pre-outage), 0 mismatches vs run data | 14 pass / 4 fail / 6 no-detection / 8 non-document → **58 %** pass on true documents |
+| B (32–63) | 32 | visual | 11 pass / 15 fail / 6 non-document → **42 %** pass on true documents |
+| C (64–94) | 31 | programmatic only (IoU / corner error / GT validity / quad-area sanity) | 8 pass, 3 pass-loose, 6 fail, 1 no-detection, 5 GT-artifact, 8 no-GT (6 plausible, 2 suspect) |
+
+**Failure modes (visual batches):** full-frame fallback when the document is not the
+dominant object; sub-object lock-in (logo, stamp box, the face photo inside an ID, a
+phone); degenerate off-frame quads; genuine no-detections concentrated on documents whose
+boundary is not fully inside the frame (crumpled receipts, manuscripts).
+
+**Ground-truth validity caveat (manifest-verified):** 7 of the 28 MIDV GT quads are fully
+or partly off-canvas (corners outside the 1080×1920 frame), so their IoU ≈ 0 measures GT
+breakage, not detection quality. Over the 21 fully on-canvas GT quads: **median IoU 0.743,
+p90 0.959, 7/21 ≥ 0.9** (the raw all-28 figures above include the broken quads).
+
+**Watermark / page audit:** all 62 exported PDFs have **no extractable text layer**
+(pdftotext) — a watermark could only be raster baked into the bitmap, and the production
+`PdfExporter` draws nothing but the scanned image; all 45 spot-checked page renders decode
+at exact A4 pixel sizes (910×1287 / 1287×910, aspect error ≤ 0.0001) with no uniform
+overlay band in corner/center/footer statistics. One page was visually confirmed clean
+before tooling failed; broader *visual* watermark confirmation is explicitly not claimed.

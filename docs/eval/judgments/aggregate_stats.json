@@ -1,0 +1,64 @@
+{
+ "run": "run-1790975962988611308",
+ "images_total": 95,
+ "detected": 87,
+ "batches": {
+  "A_cards_00_31": {
+   "method": "visual (pre-outage), cross-checked vs run data (0 mismatches)",
+   "cards": 32,
+   "pass": 14,
+   "fail": 4,
+   "fail_kinds": {
+    "FAIL_LOOSE": 1,
+    "FAIL_PARTIAL": 3
+   },
+   "no_detection": 6,
+   "na_non_document": 8,
+   "doc_pass_rate": 0.58
+  },
+  "B_cards_32_63": {
+   "method": "visual (verdict_cards_b.json)",
+   "cards": 32,
+   "pass": 11,
+   "fail": 15,
+   "no_detection": 0,
+   "na_non_document": 6,
+   "doc_pass_rate": 0.42
+  },
+  "C_cards_64_94": {
+   "method": "programmatic-only (verdict_cards_c_prog.json)",
+   "cards": 31,
+   "gt_artifact_unverified": 5,
+   "pass": 8,
+   "fail": 6,
+   "pass_loose": 3,
+   "no_detection": 1,
+   "plausible_no_gt": 6,
+   "suspect_loose": 1,
+   "suspect_subobject": 1
+  }
+ },
+ "gt_iou": {
+  "all_28_raw_median": 0.501,
+  "valid_oncanvas_gt": {
+   "n": 21,
+   "median": 0.743,
+   "p90": 0.959,
+   "ge_090": 7,
+   "excluded_offcanvas_gt": 7
+  },
+  "excluded_offcanvas_gt_rows": 7
+ },
+ "pages": {
+  "spot_checked": 45,
+  "aspect_ok": 45,
+  "prog_flags_nonempty": 0,
+  "text_layer_watermarks": 0,
+  "pdfs_text_checked": 62,
+  "visually_confirmed": 1
+ },
+ "integrity": {
+  "quarantined_judge_outputs": 2,
+  "note": "Two judge passes claimed visual reads during a session-wide image-Read outage; both contradicted recorded data (id_card_08 \"GT match\" vs off-canvas GT/IoU 0.0; passport_10 FAIL vs IoU 0.968). Excluded; see PROVENANCE.md."
+ }
+}
