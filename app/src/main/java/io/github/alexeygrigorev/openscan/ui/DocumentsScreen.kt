@@ -116,7 +116,9 @@ fun DocumentsScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onScan,
-                icon = { Icon(Icons.Filled.Scanner, contentDescription = null) },
+                // labeled for TalkBack and for UiAutomator: the merged FAB
+                // node does not expose its Text() to accessibility queries.
+                icon = { Icon(Icons.Filled.Scanner, contentDescription = "Scan") },
                 text = { Text("Scan") },
             )
         },

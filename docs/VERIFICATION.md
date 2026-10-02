@@ -18,7 +18,8 @@ tests; ship `v0.1.1` or later.
 | Layer | What it proves | Where it runs |
 | --- | --- | --- |
 | `testDebugUnitTest` (19 tests) | Page/zip ordering, safe filenames, PDF page-fit math | CI (`ci.yml`), every push |
-| `connectedDebugAndroidTest` (2 tests) | The full batch pipeline on a live Android system: FileProvider import → Room → reorder → delete → PDF + zip export, verified by re-rendering pixels | Needs a device/emulator, run manually |
+| `connectedDebugAndroidTest` (4 tests) | The full batch pipeline on a live Android system: FileProvider import → Room → reorder → delete → PDF + zip export, verified by re-rendering pixels; plus two UiAutomator tests driving the real UI across process boundaries | Needs a device/emulator, run manually |
+| Released-APK smoke test | The actual `openscan-0.1.1-release.apk` from the GitHub release installs and launches on an emulator with no crash | Manual, per release |
 | External artifact check | The exported PDF/zip inspected by independent tooling (poppler) | Manual, after an instrumented run |
 
 ## What each must-have feature has
@@ -27,7 +28,15 @@ tests; ship `v0.1.1` or later.
   pages imported through a `content://` FileProvider URI (the exact shape
   the photo picker / ML Kit deliver), stored as JPEGs, ordered, reordered,
   deleted, and reflected on disk and in Room. Regression-guards the v0.1.0
-  import bug.
+  import bug. On top of that, `PhotoPickerImportUiTest` drives the **real
+  UI**: Documents screen → "Import images" → the system photo picker
+  (select-access UI with its own task) → selection → new document with the
+  imported page decodable on disk.
+- **Scanner fallback** — `PhotoPickerImportUiTest.scanWithout…`: tapping
+  Scan on a device without Play services must degrade to the
+  "scanner is unavailable" screen with the gallery-import button — no
+  crash. (The actual GMS scan activity still needs hardware; everything
+  around it is covered.)
 - **On-device edge detection** — runs inside Google Play services' ML Kit
   document scanner; requires a GMS device. **Not verifiable on an
   emulator** (no GMS) — verify manually on hardware before promoting to
@@ -58,6 +67,13 @@ unzip -l → page-001.jpg, page-002.jpg
 i.e. after importing red/green/blue, moving green to the front and
 deleting it, the PDF is [red, blue] — content, order, geometry and
 watermark-freedom all confirmed by independent tooling.
+
+## 2026-10-02 released-APK smoke test
+
+The **v0.1.1 release APK** was downloaded from the GitHub release,
+installed on an API 35 emulator (no Play services) and launched:
+`MainActivity` reached the foreground, no errors in logcat. The binary on
+the release page is the binary that works.
 
 ## Running the instrumented tests
 
