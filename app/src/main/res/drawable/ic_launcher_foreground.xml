@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A scanned page: a white document sheet with a fold, some text lines and a
+     bright scan line sweeping across it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- document sheet with folded corner -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M41,30 h19 l11,11 v36 a2,2 0 0 1 -2,2 h-28 a2,2 0 0 1 -2,-2 v-45 a2,2 0 0 1 2,-2 z" />
+    <!-- fold -->
+    <path
+        android:fillColor="#C9EAE6"
+        android:pathData="M60,30 l11,11 h-9 a2,2 0 0 1 -2,-2 z" />
+    <!-- text lines above the scan line -->
+    <path
+        android:fillColor="#AFC5C3"
+        android:pathData="M46,47 h19 v3.5 h-19 z" />
+    <path
+        android:fillColor="#AFC5C3"
+        android:pathData="M46,54 h19 v3.5 h-19 z" />
+    <!-- scan line -->
+    <path
+        android:fillColor="#2DD4BF"
+        android:pathData="M34,61.5 h40 v4 h-40 z" />
+    <!-- text lines below the scan line -->
+    <path
+        android:fillColor="#AFC5C3"
+        android:pathData="M46,69 h13 v3.5 h-13 z" />
+</vector>

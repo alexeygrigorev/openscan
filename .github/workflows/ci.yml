@@ -1,0 +1,75 @@
+name: CI
+
+# Fast feedback lane: unit tests + debug APK on every push to main and every
+# PR. Debug-only by design — release APK/AAB building and signing belong to
+# publish-release.yml, which is the only place signing secrets are used.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Unit tests + debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      # Full history: release versioning is derived from v* tag counts, so
+      # keep the same checkout shape CI and publish builds see.
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android platform and build tools
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Cache Gradle
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Unit tests + assemble debug APK
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace --console=plain
+
+      - name: Rename debug APK
+        run: |
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -f "$apk" || { echo "::error::debug APK missing at $apk"; exit 1; }
+          # VERSION_NAME is unset on branch/PR builds (no release tag): the
+          # published artifact name falls back to `scanlet-dev-debug.apk`.
+          mv "$apk" "app/build/outputs/apk/debug/scanlet-${VERSION_NAME:-dev}-debug.apk"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: scanlet-debug-apk
+          path: app/build/outputs/apk/debug/scanlet-*-debug.apk
+          retention-days: 7
+          if-no-files-found: error
