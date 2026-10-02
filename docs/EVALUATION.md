@@ -139,13 +139,13 @@ portraits/photos/a screenshot — flagged `na_non_document`, graceful no-crash f
 
 | Outcome | Cards | Share |
 |---|---|---|
-| Tight quad + clean readable page | **33** | 41 % |
+| Tight quad + clean readable page | **32** | 40 % |
 | Usable page, loose/partial quad | 8 | 10 % |
-| Wrong or degenerate quad | 32 | 40 % |
+| Wrong or degenerate quad | **33** | 41 % |
 | No detection | 8 | 10 % |
 
 Per family (pass/partial/fail/no-detection): receipts 4/0/0/3 · invoices 5/0/2/0 · forms
-2/0/2/0 · letters 3/0/1/3 · contracts 2/0/0/0 · articles 4/0/3/0 · business cards 2/0/5/0 ·
+1/0/3/0 · letters 3/0/1/3 · contracts 2/0/0/0 · articles 4/0/3/0 · business cards 2/0/5/0 ·
 documents 1/0/1/0 · ID cards 3/2/4/1 · passports 4/1/4/1 · driver licences 3/1/6/0 ·
 notebooks 0/4/4/0 (plus 1 non-document).
 
@@ -170,3 +170,30 @@ at exact A4 pixel sizes (910×1287 / 1287×910, aspect error ≤ 0.0001) with no
 overlay band in corner/center/footer statistics. In the v3 re-read every detected card's
 PDF-page panel was also viewed directly: pages are clean renders of the warped crop, no
 marks.
+
+**Correction (2026-10-03, pixel-verified): card 37 `form_07` pass → fail.** The v3 re-read
+records `form_07` as pass — "Employee Performance Evaluation; quad tight on paper" — but the
+run's own artifacts cannot contain that content: the input photo is a dark outdoor scene
+(mean luma **59**, dominant colors `#5C2C25`/`#241519`/`#704A45` — dark browns, no white
+paper anywhere), the recorded quad `[735,9 … 730,851]` covers the right ~42 % of the
+1280×864 frame rather than a tight document, and the exported PDF's page render is the same
+dark crop (luma 91); a solo `pdftoppm` re-render of the run PDF reproduced it. The pass
+description is a hallucinated panel description of the kind already quarantined twice; it
+slipped past the flag-level cross-check because that check compares detect flags and IoU,
+not described content. Corrected totals over the 81 document cards: **32 tight (40 %), 8
+usable, 33 wrong/degenerate (41 %), 8 no-detection**; forms family 1/0/3/0. `form_07` is
+itself a 15th non-document input. Evidence:
+[`eval/judgments/form_07_pixel_refutation.md`](eval/judgments/form_07_pixel_refutation.md).
+
+**Page-render visual audit (43 batch-B page renders; judge subagent).** All 43 renders were
+checked programmatically (every one decodes, exact A4 aspect, no blanks) and 21 of 43 were
+then judged visually one at a time: **11 pass / 10 fail** — the image reader failed again
+for the remaining 22, and every unseen page is marked `NOT_SEEN` in
+[`eval/judgments/pages_batch_b_verdict.json`](eval/judgments/pages_batch_b_verdict.json)
+with no visual claim. Seen results track the recorded IoU exactly (pass ⟺ IoU ≥ 0.64);
+fails are full-frame fallbacks, desk-clutter loose crops, and wrong-object locks (an atlas
+map and a Wikipedia printout captured instead of the document, a passport-portrait
+close-up). The three MIDV booklets are built from the **detected crops** and correctly skip
+no-detection inputs (9 pages from 10 ID cards, 9 from 10 passports): batch scanning verified
+end-to-end. No watermarks on any seen page. Notes:
+[`eval/judgments/notes_judge_pages_b.md`](eval/judgments/notes_judge_pages_b.md).
