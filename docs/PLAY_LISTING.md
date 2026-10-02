@@ -3,6 +3,29 @@
 Working draft for the Play Console listing. Data safety answers and rating
 questionnaire at the bottom.
 
+## Name availability check (2026-10-02)
+
+"OpenScan" is **not unique on Google Play**: two Android apps already use it —
+[`com.ethereal.openscan`](https://play.google.com/store/apps/details?id=com.ethereal.openscan)
+("OpenScan: Document Scanner" by Ethereal Developers, an established
+open-source document scanner with the same no-watermark positioning) and
+[`com.terraidev.openscan`](https://play.google.com/store/apps/details?id=com.terraidev.openscan).
+There is also an iOS "Open Scan: PDF Scanner".
+
+Practical consequences for our listing:
+
+- Google Play does not enforce unique store names (the two existing OpenScan
+  apps coexist), so shipping as "OpenScan" is **possible**, but we would be the
+  third app with the name — directly behind a well-known FOSS scanner of the
+  same category. Expect discoverability and misidentity complaints, and some
+  impersonation-report risk raised by the existing app's community.
+- Our `applicationId` (`io.github.alexeygrigorev.openscan`) is unique and
+  unaffected.
+- Decision left to the maintainer at submission time: keep the OpenScan brand
+  (repo/GitHub stay `openscan` either way) or differentiate the store title.
+  The drafted title below already reads as distinct ("OpenScan: Doc Scanner,
+  No Marks"), but a fully distinct brand is safer for Play review.
+
 ## Store title (≤30 chars)
 
 ```
