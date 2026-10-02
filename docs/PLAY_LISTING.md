@@ -87,23 +87,31 @@ Scan anything. Own everything.
 
 ## Graphics plan
 
-- App icon: teal document sheet with scan brackets (repo vector drawable)
-- Feature graphic (1024×500): headline "No watermarks. No ads. No cloud." +
-  phone mockups of capture → filters → PDF
-- Screenshots (min 2): 1) capture with detected edges, 2) page editor with
-  OCR text, 3) document library, 4) exported PDF in the share sheet
+- App icon: ✅ `store/icon-512.png` — teal document sheet with scan line
+  (rebuilt from the repo's vector drawable)
+- Feature graphic: ✅ `store/feature-graphic.png` — app name + "No
+  watermarks. No ads. Fully offline."
+- Screenshots (min 2): 1) ✅ document library (empty state with the
+  no-watermark promise), 2) document screen with a real scanned page,
+  3) OCR view, 4) exported PDF in the share sheet — 2-4 need a device with
+  Play services (the emulator has neither the scanner module nor a photo
+  picker that accepts synthetic taps, which blocks automating the import
+  flow)
 
 ## Required for submission
 
-What Play Console demands that this draft does not yet provide:
-
-- **Hosted public privacy-policy URL** — `PRIVACY.md` must be published
-  somewhere reachable (GitHub Pages, or the rendered GitHub URL:
+- **Hosted public privacy-policy URL** — ✅ done, live at
+  <https://alexeygrigorev.com/openscan-privacy.html> (source: `openscan-privacy.md`
+  in the alexeygrigorev.github.io repo; fallback: the rendered GitHub URL
   github.com/alexeygrigorev/openscan/blob/main/docs/PRIVACY.md)
-- **Contact email** for the store listing
+- **Contact email** for the store listing — use `alexey@datatalks.club`
 - **Store category** — Utilities or Productivity (pick one)
-- **Produced asset files** — 512×512 app icon, 1024×500 feature graphic, and
-  ≥2 phone screenshots (the graphics plan above is still a plan, not files)
+- **Produced asset files** — ✅ generated in `store/`:
+  `store/icon-512.png` (512×512), `store/feature-graphic.png` (1024×500),
+  `store/screenshots/01-library.png` (1080×2400). Still needed: ≥1 more phone
+  screenshot — capture the document screen with a real scanned page on a
+  device with Play services (the emulator has no scanner module), ideally
+  also the OCR view and the share sheet holding the exported PDF.
 
 ## Data safety form
 
