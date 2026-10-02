@@ -113,6 +113,14 @@ recorded run data (a "tight quad matching ground truth" on `id_card_08`, whose G
 lies almost entirely off-canvas with recorded IoU 0.0 / corner error 56.8 %; FAIL
 verdicts on `passport_10` at IoU 0.968). Nothing from those passes is used below.
 
+**Post-push spot-check (2026-10-03, image reads restored).** Direct visual re-check of six
+previously programmatic-only artifacts — overlays `id_card_08`, `id_card_10`, `passport_01`,
+`passport_10`, plus rendered page 1 of `contract_02.pdf` and `receipt_05.pdf` — confirmed the
+recorded verdicts in both disputed directions: `passport_10` is a tight visual pass, `id_card_08`
+a true false-detection fail (full-frame fallback on a cluttered non-document scene, matching its
+recorded IoU 0.0); `id_card_10` a tight pass, `passport_01` shows the documented full-frame
+over-detection; `receipt_05.pdf` renders fully readable and watermark-free on exact A4.
+
 | Batch | Cards | Method | Result |
 |---|---|---|---|
 | A (00–31) | 32 | visual (pre-outage), 0 mismatches vs run data | 14 pass / 4 fail / 6 no-detection / 8 non-document → **58 %** pass on true documents |
