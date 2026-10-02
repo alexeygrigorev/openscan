@@ -6,10 +6,25 @@ Last updated: 2026-10-02
 
 ## What we collect
 
-Nothing. The app manifest declares **no permissions at all** — no `INTERNET`,
-no `CAMERA`, no storage, contacts, or location. Scanlet has no
-developer-controlled network code: it is structurally unable to send your
-documents, analytics, crash reports, or any other data anywhere.
+Nothing. Scanlet's own manifest declares no permissions, and the **built APK
+has no `INTERNET` permission**: it cannot open network sockets, so it is
+structurally unable to send your documents, analytics, crash reports, or any
+other data anywhere.
+
+Google's ML Kit libraries pull in Firebase data-transport telemetry, whose
+manifests merge `INTERNET` and `ACCESS_NETWORK_STATE` into every app that
+uses them. Scanlet explicitly removes both in its own manifest
+(`tools:node="remove"`) — verified on every built APK:
+
+```bash
+aapt2 dump badging app-release.apk | grep uses-permission
+# uses-permission: name='io.github.alexeygrigorev.scanlet.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+```
+
+That single remaining entry is AndroidX's generated, package-scoped guard for
+the app's own broadcast receivers (`protectionLevel: signature`). It grants
+no access to the camera, storage, location, or the network — it is a naming
+convention, not a capability.
 
 ## How it works without permissions
 

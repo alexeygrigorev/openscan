@@ -39,9 +39,9 @@ account. No cloud.** Free and open source.
 • Share anywhere via the Android share sheet
 
 ◼ WHY IT'S DIFFERENT
-• **Your documents stay yours.** Scanlet requests zero Android permissions —
-  it cannot reach the network or your camera on its own. Everything is
-  processed on your phone.
+• **Your documents stay yours.** Scanlet cannot reach the network or your
+  camera on its own — no internet permission, no camera permission. Everything
+  is processed on your phone.
 • **The app the freemium scanners pretend to be.** Clean exports with no
   watermark, full OCR without a paywall.
 • **A new home for Microsoft Lens users.** Lens is retired; Scanlet keeps the
@@ -50,8 +50,9 @@ account. No cloud.** Free and open source.
   github.com/alexeygrigorev/scanlet
 
 ◼ PERMISSIONS
-None. Scanlet requests zero Android permissions — capture runs inside Google
-Play services and sharing uses the system share sheet.
+No camera, no internet, no storage. The app cannot reach the network or the
+camera on its own: capture runs inside Google Play services and sharing uses
+the system share sheet.
 
 ◼ GOOD TO KNOW
 • Requires Google Play services for the on-device scanner module (an F-Droid

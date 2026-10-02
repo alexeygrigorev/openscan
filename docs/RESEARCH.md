@@ -44,11 +44,14 @@ The four "no"s that counter CamScanner's four biggest complaints:
 
 > **No watermark. No ads. No account. No cloud.**
 
-Proof, not promises: the manifest declares zero permissions, so the app
-*cannot* exfiltrate anything — `aapt2 dump badging` on a release APK shows no
-`uses-permission` lines at all. Open source (Apache-2.0) makes every claim
-auditable, which matters for a document scanner specifically (see the 2019
-incident).
+Proof, not promises: the built APK has **no `INTERNET` permission** — Google's
+libraries merge network permissions into every app, and Scanlet strips them
+from the merged manifest, so the app *cannot* exfiltrate anything (and the
+library telemetry it bundles cannot either). Verify on any build:
+`aapt2 dump badging app-release.apk | grep uses-permission` — the only line
+is AndroidX's package-scoped receiver guard, which grants no capability.
+Open source (Apache-2.0) makes every claim auditable, which matters for a
+document scanner specifically (see the 2019 incident).
 
 Target audiences: displaced Microsoft Lens users, privacy-conscious / FOSS
 communities (r/fossdroid), anyone scanning IDs and contracts who balks at

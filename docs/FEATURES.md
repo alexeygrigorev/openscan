@@ -62,11 +62,12 @@ current status.
 
 1. **Never a watermark.** Exported PDFs and images are clean, always. There is
    one tier and it is free.
-2. **No ads, no tracking, no account.** The manifest declares **zero Android
-   permissions** — not even `INTERNET`: the app *cannot* phone home. Capture
-   happens inside Google Play services; export uses the system share sheet.
-   Any future exception must go through a public issue and stay optional +
-   off by default.
+2. **No ads, no tracking, no account.** The built APK has **no `INTERNET`
+   permission** (Google's libraries request it; Scanlet strips it from the
+   merged manifest): the app *cannot* phone home, and the library telemetry
+   it bundles cannot either. Capture happens inside Google Play services;
+   export uses the system share sheet. Any future exception must go through a
+   public issue and stay optional + off by default.
 3. **Zero permission creep.** No camera, storage, contacts, or location in the
    Play build — ever. If the own-pipeline F-Droid flavor lands, it adds
    `CAMERA` and nothing else, in its own flavor.

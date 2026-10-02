@@ -1,15 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-      Scanlet deliberately declares NO permissions at all:
+      Scanlet's own manifest declares NO permissions:
       - The ML Kit document scanner runs inside Google Play services, which
         performs the capture itself, so no CAMERA permission is required.
       - ML Kit text recognition ships with the bundled model, so it is fully
-        on-device and needs no INTERNET permission either.
-      A permission-free manifest is the strongest privacy guarantee we can give:
-      the app cannot take pictures it was not handed, and cannot upload anything.
+        on-device.
+
+      Google's transitive libraries (Firebase data transport telemetry pulled
+      in by ML Kit) merge INTERNET and ACCESS_NETWORK_STATE into every app
+      that uses them. Scanlet explicitly REMOVES both: the built APK cannot
+      open network sockets, so no scan content — and no library telemetry —
+      can ever leave the device. The only uses-permission in the merged
+      manifest is the package-scoped DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+      that AndroidX generates to guard app-internal receivers; it grants no
+      access to anything.
     -->
+
+    <uses-permission
+        android:name="android.permission.INTERNET"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
 
     <application
         android:name=".ScanletApp"

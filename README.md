@@ -10,9 +10,11 @@ camera — and gives it away for free. Every page you scan stays on your phone.
 - **No watermarks, ever.** CamScanner stamps its logo on every page of the free tier and
   charges ~$50/year to remove it. Scanlet's output is always clean.
 - **Private by construction.** Scanning happens inside Google Play services and OCR runs
-  fully on-device. Scanlet declares **zero Android permissions** — it cannot reach the
-  network or the camera on its own, so your documents physically cannot leave your phone.
-  (CamScanner shipped malware on Google Play in 2019 and was banned in India in 2020.)
+  fully on-device. The built APK has **no INTERNET and no CAMERA**: Google's libraries
+  merge network permissions into every app that uses them, and Scanlet strips them from
+  the merged manifest — the app cannot reach the network or the camera, so your documents
+  physically cannot leave your phone. (CamScanner shipped malware on Google Play in 2019
+  and was banned in India in 2020.)
 - **Microsoft Lens was retired in March 2026** — if you lost your scanner app in that
   cleanup, Scanlet is its spiritual successor, without the account.
 - **Open source** (Apache-2.0): every line is auditable.
@@ -57,8 +59,17 @@ release process (tag → one workflow → GitHub Release with signed artifacts).
 
 ## Privacy
 
-Scanlet collects nothing. There is no analytics, no crash reporting, no account, and the
-manifest declares no permissions at all. Details in [docs/PRIVACY.md](docs/PRIVACY.md).
+Scanlet collects nothing. There is no analytics, no crash reporting, and no account, and
+the built APK requests no network access and no camera: the only `uses-permission` left
+in the merged manifest is AndroidX's package-scoped receiver guard, which grants access
+to nothing. Verify it yourself:
+
+```bash
+aapt2 dump badging app-release.apk | grep uses-permission
+# uses-permission: name='io.github.alexeygrigorev.scanlet.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+```
+
+Details in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ## Contributing
 
