@@ -23,17 +23,18 @@ current status.
 |---|---|---|---|
 | Auto edge detection | Free (with ads) | P0 | ✅ shipped (ML Kit scanner) |
 | Perspective correction | Free | P0 | ✅ shipped |
-| Manual corner adjustment | Free | P0 | ✅ shipped (scanner crop UI) |
+| Manual corner adjustment | Free | P0 | ✅ shipped (provided by the Play services scanner UI, not in-app editing; in-app editing offers rotate/delete/OCR) |
 | Batch / multi-page scan | Free (caps) | P0 | ✅ shipped (up to 50 pages) |
-| Image filters (grayscale / B&W / enhance) | Basic free, Magic Color premium | P0 | ✅ shipped (in-scanner modes) |
+| Image filters (grayscale / B&W / enhance) | Basic free, Magic Color premium | P0 | ✅ shipped (provided by the Play services scanner UI, not in-app editing; in-app editing offers rotate/delete/OCR) |
 | PDF export (multi-page) | Free but **watermarked** | P0 | ✅ shipped — never watermarked |
-| JPEG export per page | Free but **watermarked** | P0 | ✅ shipped (page files; share sheet) |
 | Share / export targets | Free | P0 | ✅ shipped (system share sheet, FileProvider) |
 | Import from gallery | Free | P0 | ✅ shipped (photo picker, no storage permission) |
 | Fully offline, no account, no ads | Mixed | P0 | ✅ shipped — zero permissions declared |
-| Document library: rename, delete, page reorder/delete | Partial free | P0 | ✅ shipped (Room, offline-first) |
+| Document library: rename, delete documents and pages | Partial free | P0 | ✅ shipped (Room, offline-first) |
 | OCR (text recognition) | Preview-only free; full is premium | P1 | ✅ shipped (on-device, unlimited, copyable) |
 | Page rotation | Free | P0 | ✅ shipped (90° steps, baked into the JPEG) |
+| Page reorder (move pages within a document) | Partial free | P0 | ⏳ roadmap (page position is append-only today) |
+| JPEG export per page (share as images) | Free but **watermarked** | P0 | ⏳ roadmap (pages are stored as JPEGs internally; only PDF export is user-facing today) |
 | Searchable PDF (OCR text layer) | Premium | P1 | ⏳ roadmap (PdfBox text layer) |
 | PDF merge / split / extract pages | Premium | P1 | ⏳ roadmap |
 | Password-protected PDF export | Premium | P1 | ⏳ roadmap |

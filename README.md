@@ -22,7 +22,8 @@ camera — and gives it away for free. Every page you scan stays on your phone.
 ## Features (v0.1)
 
 - [x] Multi-page capture with automatic edge detection, perspective crop and retake UI
-      (ML Kit document scanner)
+      (ML Kit document scanner — the Play services scanner module may need a one-time
+      download/update on device)
 - [x] Import pages from the gallery
 - [x] Document library with rename, delete and page counts
 - [x] Page rotation and per-page deletion

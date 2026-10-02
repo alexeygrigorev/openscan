@@ -9,7 +9,8 @@ questionnaire at the bottom.
 Scanlet: Doc Scanner, No Marks
 ```
 
-(28 chars. Fallback if review wants it plainer: `Scanlet — PDF Scanner App`.)
+(Exactly 30 chars — right at the ≤30 limit. Want headroom? `Scanlet: Doc Scanner`
+is 20. Fallback if review wants it plainer: `Scanlet — PDF Scanner App`, 25.)
 
 ## Short description (≤80 chars)
 
@@ -68,6 +69,18 @@ Scan anything. Own everything.
   phone mockups of capture → filters → PDF
 - Screenshots (min 2): 1) capture with detected edges, 2) page editor with
   OCR text, 3) document library, 4) exported PDF in the share sheet
+
+## Required for submission
+
+What Play Console demands that this draft does not yet provide:
+
+- **Hosted public privacy-policy URL** — `PRIVACY.md` must be published
+  somewhere reachable (GitHub Pages, or the rendered GitHub URL:
+  github.com/alexeygrigorev/scanlet/blob/main/docs/PRIVACY.md)
+- **Contact email** for the store listing
+- **Store category** — Utilities or Productivity (pick one)
+- **Produced asset files** — 512×512 app icon, 1024×500 feature graphic, and
+  ≥2 phone screenshots (the graphics plan above is still a plan, not files)
 
 ## Data safety form
 

@@ -53,13 +53,15 @@ data deletion — uninstall the app or delete a document in-app.**
 ## Open source
 
 The entire codebase is public: <https://github.com/alexeygrigorev/scanlet>.
-Anything this document claims is verifiable in source — including the empty
-permission list:
+Anything this document claims is verifiable in source — including the single
+remaining permission line:
 
 ```bash
 aapt2 dump badging app-release.apk | grep uses-permission
-# (no output)
+# uses-permission: name='io.github.alexeygrigorev.scanlet.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
 ```
+
+That is the one AndroidX receiver-guard entry documented above — nothing else.
 
 ## Contact
 
