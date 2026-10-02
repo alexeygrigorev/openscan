@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -59,6 +60,15 @@ interface ScanletDao {
 
     @Query("UPDATE pages SET filePath = :filePath WHERE id = :id")
     suspend fun setPageFile(id: Long, filePath: String)
+
+    @Update
+    suspend fun updatePages(pages: List<PageEntity>)
+
+    /** Replaces the persisted page order in one transaction. */
+    @Transaction
+    suspend fun persistPageOrder(pages: List<PageEntity>) {
+        updatePages(pages)
+    }
 
     @Query("DELETE FROM pages WHERE id = :id")
     suspend fun deletePage(id: Long)

@@ -38,6 +38,14 @@ class DocumentFiles(context: Context) {
     fun sharedPdfFile(title: String): File =
         File(exportsDir, "${io.github.alexeygrigorev.scanlet.util.safeFileName(title)}.pdf")
 
+    /** Single-page JPEG export. Pages are stored as JPEGs, so this is a plain copy. */
+    fun sharedImageFile(title: String): File =
+        File(exportsDir, "${io.github.alexeygrigorev.scanlet.util.safeFileName(title)}.jpg")
+
+    /** Multi-page JPEG export: a zip of page-001.jpg, page-002.jpg, … */
+    fun sharedZipFile(title: String): File =
+        File(exportsDir, "${io.github.alexeygrigorev.scanlet.util.safeFileName(title)}.zip")
+
     fun deleteDocumentFiles(documentId: Long) {
         documentDir(documentId).deleteRecursively()
     }

@@ -62,6 +62,18 @@ class DocumentsRepository(
         dao.touchDocument(page.documentId, System.currentTimeMillis())
     }
 
+    /**
+     * Moves a page [delta] slots in the document (−1 = up, +1 = down) and
+     * persists the full re-indexed order.
+     */
+    suspend fun movePage(page: PageEntity, delta: Int) {
+        val current = dao.getPages(page.documentId)
+        val updated = PageOrdering.move(current, page.id, delta)
+        if (updated == current) return
+        dao.persistPageOrder(updated)
+        dao.touchDocument(page.documentId, System.currentTimeMillis())
+    }
+
     /** Bakes a 90° clockwise rotation into the stored page JPEG. */
     suspend fun rotatePage(page: PageEntity) = withContext(Dispatchers.IO) {
         val source = files.pageFile(page.filePath)

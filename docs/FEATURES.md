@@ -33,8 +33,8 @@ current status.
 | Document library: rename, delete documents and pages | Partial free | P0 | ✅ shipped (Room, offline-first) |
 | OCR (text recognition) | Preview-only free; full is premium | P1 | ✅ shipped (on-device, unlimited, copyable) |
 | Page rotation | Free | P0 | ✅ shipped (90° steps, baked into the JPEG) |
-| Page reorder (move pages within a document) | Partial free | P0 | ⏳ roadmap (page position is append-only today) |
-| JPEG export per page (share as images) | Free but **watermarked** | P0 | ⏳ roadmap (pages are stored as JPEGs internally; only PDF export is user-facing today) |
+| Page reorder (move pages within a document) | Partial free | P0 | ✅ shipped (Reorder mode in the document screen: move pages up/down; order persists and drives both exports) |
+| JPEG export per page (share as images) | Free but **watermarked** | P0 | ✅ shipped — never watermarked (single page shares a JPEG as-is; multiple pages share a zip of JPEGs, no re-encoding) |
 | Searchable PDF (OCR text layer) | Premium | P1 | ⏳ roadmap (PdfBox text layer) |
 | PDF merge / split / extract pages | Premium | P1 | ⏳ roadmap |
 | Password-protected PDF export | Premium | P1 | ⏳ roadmap |

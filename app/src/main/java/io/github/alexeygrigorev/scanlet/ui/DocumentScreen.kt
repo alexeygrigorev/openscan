@@ -17,7 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -59,6 +63,7 @@ import io.github.alexeygrigorev.scanlet.data.DocumentFiles
 import io.github.alexeygrigorev.scanlet.data.DocumentsRepository
 import io.github.alexeygrigorev.scanlet.data.PageEntity
 import io.github.alexeygrigorev.scanlet.scan.Images
+import io.github.alexeygrigorev.scanlet.scan.JpegExporter
 import io.github.alexeygrigorev.scanlet.scan.PageOcr
 import io.github.alexeygrigorev.scanlet.scan.PdfExporter
 import java.io.File
@@ -69,6 +74,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class DocumentViewModel(
@@ -87,7 +94,12 @@ class DocumentViewModel(
     val exporting = MutableStateFlow(false)
     val exportError = MutableStateFlow<String?>(null)
     val shareFile = MutableStateFlow<File?>(null)
+    val shareType = MutableStateFlow("application/pdf")
+    val shareLabel = MutableStateFlow("Share PDF")
     val ocrText = MutableStateFlow<String?>(null)
+
+    /** Serializes page moves so rapid taps can't interleave read-modify-write cycles. */
+    private val moveMutex = Mutex()
 
     fun renameDocument(title: String) {
         viewModelScope.launch { repository.renameDocument(documentId, title) }
@@ -106,6 +118,12 @@ class DocumentViewModel(
 
     fun rotatePage(page: PageEntity) {
         viewModelScope.launch { repository.rotatePage(page) }
+    }
+
+    fun movePage(page: PageEntity, delta: Int) {
+        viewModelScope.launch {
+            moveMutex.withLock { repository.movePage(page, delta) }
+        }
     }
 
     fun recognizeText(page: PageEntity) {
@@ -131,15 +149,13 @@ class DocumentViewModel(
         viewModelScope.launch {
             try {
                 val title = document.value?.title ?: DocumentsRepository.defaultTitle()
-                val pageFiles = pages.value
-                    .ifEmpty { repository.getPages(documentId) }
-                    .map { File(it.filePath) }
-                    .filter { it.exists() }
-                if (pageFiles.isEmpty()) error("No pages to export")
+                val pageFiles = collectPageFiles()
                 val out = files.sharedPdfFile(title)
                 withContext(Dispatchers.IO) {
                     FileOutputStream(out).use { stream -> PdfExporter.exportPdf(pageFiles, stream) }
                 }
+                shareType.value = "application/pdf"
+                shareLabel.value = "Share PDF"
                 shareFile.value = out
             } catch (t: Throwable) {
                 exportError.value = t.message ?: "PDF export failed"
@@ -148,6 +164,51 @@ class DocumentViewModel(
             }
         }
     }
+
+    /**
+     * Exports pages as JPEG images: the stored page file copied as-is for a
+     * single page, a zip of JPEGs for several. No re-encoding, no watermark.
+     */
+    fun exportJpegs() {
+        if (exporting.value) return
+        exporting.value = true
+        exportError.value = null
+        viewModelScope.launch {
+            try {
+                val title = document.value?.title ?: DocumentsRepository.defaultTitle()
+                val pageFiles = collectPageFiles()
+                val out = if (pageFiles.size == 1) {
+                    val image = files.sharedImageFile(title)
+                    withContext(Dispatchers.IO) {
+                        JpegExporter.exportSingle(pageFiles.first(), FileOutputStream(image))
+                    }
+                    shareType.value = "image/jpeg"
+                    shareLabel.value = "Share image"
+                    image
+                } else {
+                    val zip = files.sharedZipFile(title)
+                    withContext(Dispatchers.IO) {
+                        JpegExporter.exportZip(pageFiles, FileOutputStream(zip))
+                    }
+                    shareType.value = "application/zip"
+                    shareLabel.value = "Share images"
+                    zip
+                }
+                shareFile.value = out
+            } catch (t: Throwable) {
+                exportError.value = t.message ?: "JPEG export failed"
+            } finally {
+                exporting.value = false
+            }
+        }
+    }
+
+    private suspend fun collectPageFiles(): List<File> =
+        pages.value
+            .ifEmpty { repository.getPages(documentId) }
+            .map { File(it.filePath) }
+            .filter { it.exists() }
+            .ifEmpty { error("No pages to export") }
 
     fun consumeShareFile() {
         shareFile.value = null
@@ -166,12 +227,15 @@ fun DocumentScreen(
     val exporting by viewModel.exporting.collectAsState()
     val exportError by viewModel.exportError.collectAsState()
     val shareFile by viewModel.shareFile.collectAsState()
+    val shareType by viewModel.shareType.collectAsState()
+    val shareLabel by viewModel.shareLabel.collectAsState()
     val ocrText by viewModel.ocrText.collectAsState()
 
     val context = LocalContext.current
     var renaming by remember { mutableStateOf(false) }
     var deletingDocument by remember { mutableStateOf(false) }
     var deletingPage by remember { mutableStateOf<PageEntity?>(null) }
+    var reordering by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -184,25 +248,42 @@ fun DocumentScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { viewModel.exportPdf() },
-                        enabled = !exporting && pages.isNotEmpty(),
-                    ) {
-                        Icon(Icons.Filled.PictureAsPdf, contentDescription = "Export PDF")
-                    }
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "Document actions")
+                    if (reordering) {
+                        IconButton(onClick = { reordering = false }) {
+                            Icon(Icons.Filled.Check, contentDescription = "Done reordering")
                         }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Rename") },
-                                onClick = { menuOpen = false; renaming = true },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Delete document") },
-                                onClick = { menuOpen = false; deletingDocument = true },
-                            )
+                    } else {
+                        IconButton(
+                            onClick = { viewModel.exportPdf() },
+                            enabled = !exporting && pages.isNotEmpty(),
+                        ) {
+                            Icon(Icons.Filled.PictureAsPdf, contentDescription = "Export PDF")
+                        }
+                        IconButton(
+                            onClick = { viewModel.exportJpegs() },
+                            enabled = !exporting && pages.isNotEmpty(),
+                        ) {
+                            Icon(Icons.Filled.Image, contentDescription = "Export images")
+                        }
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = "Document actions")
+                            }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Reorder pages") },
+                                    onClick = { menuOpen = false; reordering = true },
+                                    enabled = pages.size > 1,
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Rename") },
+                                    onClick = { menuOpen = false; renaming = true },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete document") },
+                                    onClick = { menuOpen = false; deletingDocument = true },
+                                )
+                            }
                         }
                     }
                 },
@@ -225,9 +306,15 @@ fun DocumentScreen(
                     .padding(padding),
             ) {
                 items(pages, key = { it.id }) { page ->
+                    val index = pages.indexOf(page)
                     PageRow(
                         page = page,
+                        reordering = reordering,
+                        canMoveUp = index > 0,
+                        canMoveDown = index < pages.lastIndex,
                         onClick = { onEditPage(page.id) },
+                        onMoveUp = { viewModel.movePage(page, -1) },
+                        onMoveDown = { viewModel.movePage(page, +1) },
                         onOcr = { viewModel.recognizeText(page) },
                         onRotate = { viewModel.rotatePage(page) },
                         onDelete = { deletingPage = page },
@@ -237,16 +324,16 @@ fun DocumentScreen(
         }
     }
 
-    // Hand the freshly exported PDF to the system share sheet.
+    // Hand the freshly exported file to the system share sheet.
     LaunchedEffect(shareFile) {
         val file = shareFile ?: return@LaunchedEffect
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val send = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
+            type = shareType
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        runCatching { context.startActivity(Intent.createChooser(send, "Share PDF")) }
+        runCatching { context.startActivity(Intent.createChooser(send, shareLabel)) }
         viewModel.consumeShareFile()
     }
 
@@ -332,7 +419,12 @@ fun DocumentScreen(
 @Composable
 private fun PageRow(
     page: PageEntity,
+    reordering: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     onClick: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
     onOcr: () -> Unit,
     onRotate: () -> Unit,
     onDelete: () -> Unit,
@@ -351,15 +443,26 @@ private fun PageRow(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         trailingContent = {
-            Row {
-                IconButton(onClick = onOcr) {
-                    Icon(Icons.Filled.TextFields, contentDescription = "Recognize text")
+            if (reordering) {
+                Row {
+                    IconButton(onClick = onMoveUp, enabled = canMoveUp) {
+                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move page up")
+                    }
+                    IconButton(onClick = onMoveDown, enabled = canMoveDown) {
+                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move page down")
+                    }
                 }
-                IconButton(onClick = onRotate) {
-                    Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate")
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete page")
+            } else {
+                Row {
+                    IconButton(onClick = onOcr) {
+                        Icon(Icons.Filled.TextFields, contentDescription = "Recognize text")
+                    }
+                    IconButton(onClick = onRotate) {
+                        Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate")
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Delete page")
+                    }
                 }
             }
         },

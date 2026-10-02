@@ -26,8 +26,9 @@ camera — and gives it away for free. Every page you scan stays on your phone.
       download/update on device)
 - [x] Import pages from the gallery
 - [x] Document library with rename, delete and page counts
-- [x] Page rotation and per-page deletion
+- [x] Page rotation, per-page deletion and page reordering (Reorder mode)
 - [x] Share as PDF (multi-page) — never watermarked
+- [x] Share as JPEG images — never watermarked (zip of pages for multi-page documents)
 - [x] Fully offline; works without any network connection
 - [x] On-device OCR with copyable text (ML Kit text recognition — bundled)
 - [ ] Merge documents, password-protected PDF export
