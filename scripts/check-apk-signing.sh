@@ -226,8 +226,11 @@ main() {
   pass "apksigner verify accepts $APK"
 
   local v2=false v3=false
-  grep -q 'Verified using v2 scheme: true' <<<"$verify_out" && v2=true
-  grep -q 'Verified using v3 scheme: true' <<<"$verify_out" && v3=true
+  # Newer build-tools annotate the scheme name, e.g.
+  # "Verified using v2 scheme (APK Signature Scheme v2): true"; older ones
+  # print "Verified using v2 scheme: true". Accept both spellings.
+  grep -Eq 'Verified using v2 scheme( \([^)]*\))?: true' <<<"$verify_out" && v2=true
+  grep -Eq 'Verified using v3 scheme( \([^)]*\))?: true' <<<"$verify_out" && v3=true
   if [[ "$v2" == true || "$v3" == true ]]; then
     pass "signature scheme v2+ present (v2=$v2, v3=$v3)"
   else
