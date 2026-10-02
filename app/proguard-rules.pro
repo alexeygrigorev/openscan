@@ -1,4 +1,4 @@
-# Scanlet ProGuard/R8 rules.
+# OpenScan ProGuard/R8 rules.
 #
 # The app is small and mostly reflection-free, but a few libraries need care:
 # ML Kit and Play services ship their own consumer rules; the rules below only
