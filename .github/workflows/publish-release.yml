@@ -225,14 +225,25 @@ jobs:
           mv app/build/outputs/bundle/release/app-release.aab \
             "app/build/outputs/bundle/release/openscan-${{ steps.version.outputs.name }}-release.aab"
 
+      # upload-artifact keeps directory structure relative to the paths'
+      # common ancestor — staging from three output directories would nest
+      # apk/ and bundle/ subdirectories into the artifact and break the
+      # publish job's flat glob. Copy everything into one flat directory.
+      - name: Stage validated artifacts for the publish job
+        run: |
+          set -euo pipefail
+          mkdir -p release-staging
+          cp app/build/outputs/apk/debug/openscan-*-debug.apk release-staging/
+          cp app/build/outputs/apk/release/openscan-*-release.apk release-staging/
+          cp app/build/outputs/bundle/release/openscan-*-release.aab release-staging/
+          test "$(find release-staging -maxdepth 1 -type f | wc -l)" -eq 3 ||
+            { echo "::error::expected exactly 3 staged artifacts (debug APK, release APK, release AAB)"; exit 1; }
+
       - name: Upload validated artifacts for the publish job
         uses: actions/upload-artifact@v7
         with:
           name: openscan-release-assets
-          path: |
-            app/build/outputs/apk/debug/openscan-*-debug.apk
-            app/build/outputs/apk/release/openscan-*-release.apk
-            app/build/outputs/bundle/release/openscan-*-release.aab
+          path: release-staging/*
           retention-days: 7
           if-no-files-found: error
 
@@ -300,6 +311,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Only regular files may reach gh release create — a directory in
+          # the glob makes the asset upload fail after the release exists.
+          test "$(find release-assets -type f | wc -l)" -eq 3 ||
+            { echo "::error::expected exactly 3 downloaded artifacts (debug APK, release APK, release AAB)"; find release-assets; exit 1; }
           ls -l release-assets
           gh release create "$RELEASE_TAG" release-assets/* \
             --repo "${{ github.repository }}" \
