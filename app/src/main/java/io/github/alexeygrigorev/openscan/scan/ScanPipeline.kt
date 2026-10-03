@@ -53,6 +53,10 @@ private object QuadDetector {
     private const val PAPER_STRONG = 0.05 // paperness floor for crisp-edge quads (saturated
     // documents with sharply bordered edges still pass)
     private const val PAPER_WEAK = 0.40   // floor for quads without edge evidence
+    private const val PAPERLESS_FLOOR = 0.12 // on scenes with no papery area at all
+    private const val PAPERLESS_SCENE = 0.08 // (frame paperness below this) crisp-edge
+    // quads must reach the higher floor — bright bands on paperless scenes
+    // (pap ~0) are reads of texture, not documents
     private const val FRAME_AF_DAMP = 0.85
     private const val BIG_AF = 0.88       // quads at least this big with weak edge support
     private const val BIG_AF_DAMP = 0.25  // are damped: bright desk merged with the document
@@ -101,6 +105,9 @@ private object QuadDetector {
         val frameQ = doubleArrayOf(
             0.0, 0.0, sw - 1.0, 0.0, sw - 1.0, sh - 1.0, 0.0, sh - 1.0,
         )
+        // Paperness of the whole scene: drives the paperless-scene paperness
+        // floor in add() (improved.py computes the same value once per photo).
+        val scenePap = paperishScore(frameQ, hsv)
 
         // Raw + dilated edges per Canny set: raw for refinement, dilated for
         // support sampling (band = 3 px). The last pass runs Canny on
@@ -133,7 +140,7 @@ private object QuadDetector {
                 if (qa <= 0.0) continue
                 val sup = edgeSupport(q, dil)
                 if (sup < 0.30) continue
-                add(cands, q, min(1.0, ca / qa), sup, idx, frameQ, frameArea, hsv, lastResort = false)
+                add(cands, q, min(1.0, ca / qa), sup, idx, frameQ, frameArea, scenePap, hsv, lastResort = false)
             }
         }
         grayC.release()
@@ -141,7 +148,7 @@ private object QuadDetector {
         // Bright-paper mask: support is inherently weak (paper edges are exactly
         // the low-contrast case that motivated this path), so no support gate.
         paperMaskQuad(hsv, sw, sh)?.let { pm ->
-            add(cands, pm, 1.0, edgeSupport(pm, dilEdges[0]!!), 0, frameQ, frameArea, hsv, lastResort = false)
+            add(cands, pm, 1.0, edgeSupport(pm, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = false)
         }
 
         // Last resort: minAreaRect of the dominant contour — only when the
@@ -159,9 +166,10 @@ private object QuadDetector {
                     val q = orderCorners(pts.map { it.x to it.y })
                     val qa = max(polyArea(q), 1e-6)
                     val fill = min(1.0, Imgproc.contourArea(big) / qa)
-                    if (fill >= 0.5) {
-                        add(cands, q, fill, edgeSupport(q, dilEdges[0]!!), 0, frameQ, frameArea, hsv, lastResort = true)
-                    }
+                    // Loose fill is fine — side extension grows the rect back
+                    // over the paper, and the frame-promotion above handles
+                    // sliver rects.
+                    add(cands, q, fill, edgeSupport(q, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = true)
                 }
             }
         }
@@ -170,14 +178,15 @@ private object QuadDetector {
         // look like paper (document fills / overflows the frame).
         val framePaperish = frameIsPaperish(hsv, sw, sh)
         if (cands.isEmpty() && framePaperish) {
-            add(cands, frameQ, 1.0, edgeSupport(frameQ, dilEdges[0]!!), 0, frameQ, frameArea, hsv, lastResort = true)
+            add(cands, frameQ, 1.0, edgeSupport(frameQ, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = true)
         }
 
-        gray.release()
-        rawEdges.forEach { it?.release() }
-        dilEdges.forEach { it?.release() }
-
-        if (cands.isEmpty()) return null
+        if (cands.isEmpty()) {
+            gray.release(); hsv.release()
+            rawEdges.forEach { it?.release() }
+            dilEdges.forEach { it?.release() }
+            return null
+        }
         cands.sortByDescending { it.score }
         var best = cands[0]
         val bestScore0 = best.score // the sliver test keeps using the original winner's score
@@ -198,10 +207,22 @@ private object QuadDetector {
         if (!best.q.contentEquals(frameQ) && best.af < SLIVER_AF && bestScore0 < 1.0 && framePaperish) {
             best = Cand(frameQ, bestScore0, best.pap, 1.0, edgeSupport(frameQ, dilEdges[0]!!), 0)
         }
+        // A BIG winner with two or more sides cutting through open papery space
+        // (no edge line along them) is a partial read of a frame-filling document
+        // — e.g. a band across a full-bleed print or a ruler quad on a full page.
+        if (!best.q.contentEquals(frameQ) && best.af > 0.30 && framePaperish) {
+            val sups = sideSupports(best.q, rawEdges[best.edgesIdx]!!)
+            if (sups.count { it < 0.25 } >= 2) {
+                best = Cand(frameQ, best.score, best.pap, 1.0, edgeSupport(frameQ, dilEdges[0]!!), 0)
+            }
+        }
         var quad = best.q
         quad = refineQuad(quad, rawEdges[best.edgesIdx]!!)
         quad = extendSides(quad, hsv, rawEdges[best.edgesIdx]!!, sw, sh)
+        gray.release()
         hsv.release()
+        rawEdges.forEach { it?.release() }
+        dilEdges.forEach { it?.release() }
         val pts = Array(4) { i -> (quad[2 * i] / scale) to (quad[2 * i + 1] / scale) }
         return FloatArray(8) { d -> if (d % 2 == 0) pts[d / 2].first.toFloat() else pts[d / 2].second.toFloat() }
     }
@@ -215,11 +236,13 @@ private object QuadDetector {
         edgesIdx: Int,
         frameQ: DoubleArray,
         frameArea: Double,
+        scenePap: Double,
         hsv: Mat,
         lastResort: Boolean,
     ) {
         val pap = paperishScore(q, hsv)
-        val floor = if (sup >= 0.55) PAPER_STRONG else PAPER_WEAK
+        var floor = if (sup >= 0.55) PAPER_STRONG else PAPER_WEAK
+        if (sup >= 0.55 && scenePap < PAPERLESS_SCENE) floor = max(floor, PAPERLESS_FLOOR)
         if (pap < floor) return
         val af = polyArea(q) / frameArea
         if (!lastResort && af > 0.8 && pap < 0.5 && fill >= 0.99) return // mask merged the desk
@@ -442,8 +465,10 @@ private object QuadDetector {
             val mat = MatOfPoint2f(*Array(m) { org.opencv.core.Point(fx[it].toDouble(), fy[it].toDouble()) })
             val line = Mat()
             Imgproc.fitLine(mat, line, Imgproc.DIST_HUBER, 0.0, 0.01, 0.01)
-            val l = DoubleArray(4)
-            line.get(0, 0, l)
+            // fitLine emits CV_32F: (vx, vy, x0, y0)
+            val lf = FloatArray(4)
+            line.get(0, 0, lf)
+            val l = DoubleArray(4) { lf[it].toDouble() }
             lines[side] = l
             line.release()
         }
@@ -467,13 +492,19 @@ private object QuadDetector {
         }
         val refined = orderCorners(corners)
         if (polyArea(refined) < 0.3 * polyArea(q)) return q // refinement collapsed
-        return refined
+        // Fitted lines can intersect outside the photo; a scan crop never
+        // extends beyond the picture, so clamp corners into the frame.
+        return DoubleArray(8) { i ->
+            if (i % 2 == 0) refined[i].coerceIn(0.0, (ew - 1).toDouble())
+            else refined[i].coerceIn(0.0, (eh - 1).toDouble())
+        }
     }
 
     private fun lineIsect(l1: DoubleArray, l2: DoubleArray): Pair<Double, Double>? {
-        val den = l1[0] * l2[3] - l1[1] * l2[2]
+        // fitLine order: (dir x, dir y, point x, point y)
+        val den = l1[0] * l2[1] - l1[1] * l2[0]
         if (kotlin.math.abs(den) < 1e-6) return null
-        val t = ((l2[2] - l1[2]) * l2[3] - (l2[3] - l1[3]) * l2[2]) / den
+        val t = ((l2[2] - l1[2]) * l2[1] - (l2[3] - l1[3]) * l2[0]) / den
         return (l1[2] + t * l1[0]) to (l1[3] + t * l1[1])
     }
 
@@ -640,6 +671,46 @@ private object QuadDetector {
         val a0 = polyArea(q)
         val a1 = polyArea(q2c)
         return if (0.5 * a0 <= a1 && a1 <= 3.0 * a0) q2c else q
+    }
+
+    /** Per-side fraction of sampled points sitting on/near an edge pixel
+     *  (14 samples per side, band = 3 px). A true document boundary has an
+     *  edge line running along every side; a winner whose sides cut through
+     *  open paper shows weak sides. Mirrors improved.side_supports() 1:1. */
+    private fun sideSupports(q: DoubleArray, edges: Mat): DoubleArray {
+        val band = 3
+        val dil = Mat()
+        Imgproc.dilate(
+            edges, dil,
+            Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size((2 * band + 1).toDouble(), (2 * band + 1).toDouble()))
+        )
+        val ew = dil.cols()
+        val eh = dil.rows()
+        val buf = ByteArray(ew * eh)
+        dil.get(0, 0, buf)
+        dil.release()
+        val k = 14
+        val out = DoubleArray(4)
+        for (i in 0 until 4) {
+            val ax = q[2 * i]
+            val ay = q[2 * i + 1]
+            val j = (i + 1) % 4
+            val bx = q[2 * j]
+            val by = q[2 * j + 1]
+            var hit = 0
+            var total = 0
+            for (s in 0 until k) {
+                val t = 0.08 + s * (0.92 - 0.08) / (k - 1)
+                val xi = Math.round(ax + t * (bx - ax)).toInt()
+                val yi = Math.round(ay + t * (by - ay)).toInt()
+                if (xi in 0 until ew && yi in 0 until eh) {
+                    total++
+                    if ((buf[yi * ew + xi].toInt() and 0xFF) > 0) hit++
+                }
+            }
+            out[i] = if (total == 0) 0.0 else hit.toDouble() / total
+        }
+        return out
     }
 
     private fun halfEven(v: Double): Double {

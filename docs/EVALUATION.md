@@ -1,4 +1,4 @@
-# Evaluation: corner detection & PDF export over 95 real document photos
+# Evaluation: corner detection & PDF export over 82 real document photos
 
 **Date:** 2026-10-02 · **App:** `main` (post-v0.1.2) · **Device:** emulator `openscan-gms35` (API 35, Google APIs)
 
@@ -21,7 +21,7 @@ devices, which should be spot-checked once on a real phone).
 
 ## Dataset
 
-95 real photos, 12 document types:
+82 real photos, 11 document types:
 
 - **63 Wikimedia Commons** photos (receipts, contracts, letters, invoices,
   forms, business cards, notebooks, articles) — free licenses recorded per file.
@@ -30,10 +30,18 @@ devices, which should be spot-checked once on a real phone).
   range requests (~30 MB of the ~65 GB dataset). MIDV scenes are deliberately
   hard: small plastic cards, curved surfaces, cluttered backgrounds.
 
-Known data-quality issue: several Commons search hits are **not documents**
-(most of the `document_*` group and a few `article_*` are portraits, a
-screenshot, unrelated photos). They are retained and flagged; they depress the
-raw detection numbers but also demonstrate graceful failure (no crash).
+Corpus hygiene (2026-10-03 evening): 13 Commons search hits that are **not
+documents** were identified by their own source-URL titles and removed
+(95 → 82; files retained under `rejected_junk/` in the host workspace): the
+`document_01–06` group (two official portraits, a daisy, a tablecloth, a
+vector-UI graphic, a table-tennis photo), `article_01` (person) and
+`article_05` (sea anemones), `form_03/04/07` (word-play hits: a "filled-in"
+canal and "water filled" drums), `notebook_01` (a 1902 portrait) and
+`notebook_06` (food). On the earlier 95-photo runs the detector refused
+exactly the two purest non-documents (`document_01`, `document_06` — "no quad
+found", i.e. the correct behavior for a face); the rest it detected as best it
+could. `document_07` (Roosevelt at a desk **with papers**) and `form_02`
+(person filling in a form) are kept as document-in-scene cases.
 
 Full provenance: [`eval/manifest.json`](eval/manifest.json).
 
@@ -238,3 +246,81 @@ equivalent within noise; sample overlays:
 [`detector_v8_driver_license_03.jpg`](eval/samples/detector_v8_driver_license_03.jpg) (0.07→0.97),
 [`detector_v8_passport_04.jpg`](eval/samples/detector_v8_passport_04.jpg) (none→0.78),
 [`detector_v8_receipt_07.jpg`](eval/samples/detector_v8_receipt_07.jpg) (bottom edge restored).
+
+<!-- review-2026-10-03c -->
+## Detector v9 (v13 corner fix + guards) + clean-corpus on-device run (2026-10-03, night)
+
+**Detector change (v8 → v9).** Four fixes, offline-validated in the Python twin and ported
+1:1 to [`ScanPipeline.kt`](../app/src/main/java/io/github/alexeygrigorev/openscan/scan/ScanPipeline.kt):
+
+1. **`fitLine` output read as CV_32F** (it is not CV_64F) and **`lineIsect` endpoint
+   order fixed** — corner rays now extend in the right direction, so line-fit refinement
+   lands corners on real edges (the single-line v13 fix; previously several refined quads
+   were pulled inside/off the document).
+2. **Big-winner side-support check** — a large winner with ≥2 sides cutting through open
+   papery space (no edge line along them) is promoted to the frame; recovers full-bleed
+   prints grabbed as a band.
+3. **Refined-corner frame clamp** — fitted lines can intersect outside the photo; a scan
+   crop never extends beyond the picture.
+4. Loose-fill last-resort un-gated (side extension repairs it), and Mat releases moved
+   behind the early return (no leak on refusal).
+
+Evidence trail: the v13 one-liner was visually judged **ACCEPT** on 27 key images
+(25 better/equal, 2 narrow residuals) in the tuning workspace; on-device, per-image GT IoU
+improved on 23/28 with the headline win `driver_license_06` 0.613 → 0.946 and regressions
+at noise level (worst −0.013).
+
+**Clean-corpus on-device run** (emulator `openscan-gms35`, manual `am instrument`,
+82-photo corpus above):
+
+| Metric | v8 run (95-photo corpus) | **v9 run (82-photo corpus)** |
+| --- | --- | --- |
+| Detection rate | 93 / 95 (2 non-documents refused) | **82 / 82** |
+| GT IoU (28 valid GT quads) | median 0.926 · 16/28 ≥ 0.9 | **median 0.951 · 17/28 ≥ 0.9** |
+| PDF export | 66/66 | **55/55** |
+| Watermark check (`pdftotext`) | 66/66 empty | **55/55 empty** |
+
+The frame clamp is a no-op on this corpus (zero quads moved vs the pre-clamp build) — it
+guards the `article_03`-class over-extension family seen offline. `app` unit tests green
+on the final tree. Accepted residuals unchanged: `passport_04` (GT 0.69), `article_03`
+(frame-filling print), `driver_license_04/07`, `id_card_04` slant; 2 GT quads off-canvas
+score 0 by construction.
+
+<!-- review-2026-10-03c -->
+## Detector v9 (v13 corner fix + guards) + clean-corpus on-device run (2026-10-03, night)
+
+**Detector change (v8 → v9).** Four fixes, offline-validated in the Python twin and ported
+1:1 to [`ScanPipeline.kt`](../app/src/main/java/io/github/alexeygrigorev/openscan/scan/ScanPipeline.kt):
+
+1. **`fitLine` output read as CV_32F** (it is not CV_64F) and **`lineIsect` endpoint
+   order fixed** — corner rays now extend in the right direction, so line-fit refinement
+   lands corners on real edges (the single-line v13 fix; previously several refined quads
+   were pulled inside/off the document).
+2. **Big-winner side-support check** — a large winner with ≥2 sides cutting through open
+   papery space (no edge line along them) is promoted to the frame; recovers full-bleed
+   prints grabbed as a band.
+3. **Refined-corner frame clamp** — fitted lines can intersect outside the photo; a scan
+   crop never extends beyond the picture.
+4. Loose-fill last-resort un-gated (side extension repairs it), and Mat releases moved
+   behind the early return (no leak on refusal).
+
+Evidence trail: the v13 one-liner was visually judged **ACCEPT** on 27 key images
+(25 better/equal, 2 narrow residuals) in the tuning workspace; on-device, per-image GT IoU
+improved on 23/28 with the headline win `driver_license_06` 0.613 → 0.946 and regressions
+at noise level (worst −0.013).
+
+**Clean-corpus on-device run** (emulator `openscan-gms35`, manual `am instrument`,
+82-photo corpus above):
+
+| Metric | v8 run (95-photo corpus) | **v9 run (82-photo corpus)** |
+| --- | --- | --- |
+| Detection rate | 93 / 95 (2 non-documents refused) | **82 / 82** |
+| GT IoU (28 valid GT quads) | median 0.926 · 16/28 ≥ 0.9 | **median 0.951 · 17/28 ≥ 0.9** |
+| PDF export | 66/66 | **55/55** |
+| Watermark check (`pdftotext`) | 66/66 empty | **55/55 empty** |
+
+The frame clamp is a no-op on this corpus (zero quads moved vs the pre-clamp build) — it
+guards the `article_03`-class over-extension family seen offline. `app` unit tests green
+on the final tree. Accepted residuals unchanged: `passport_04` (GT 0.69), `article_03`
+(frame-filling print), `driver_license_04/07`, `id_card_04` slant; 2 GT quads off-canvas
+score 0 by construction.

@@ -24,30 +24,6 @@
   "sha256": "49d1864fe840a768cb5c048893ef03ec9917c974455ab84a6259035aeb5a1c6c"
  },
  {
-  "file": "document_01.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/76/Boris_Johnson_official_portrait_%28cropped%29.jpg",
-  "license": "OGL 3",
-  "doc_type": "document",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1122,
-  "height": 1578,
-  "title": "File:Boris Johnson official portrait (cropped).jpg",
-  "sha256": "d533d7b5689493e820174438d82c229ebce09b2e37544e2a434ac574330e6533"
- },
- {
-  "file": "document_02.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/10/Official_photograph_of_First_Minister_Eluned_Morgan_MS_%28Portrait%29_%28cropped%29.jpg",
-  "license": "OGL 3",
-  "doc_type": "document",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 3000,
-  "height": 4000,
-  "title": "File:Official photograph of First Minister Eluned Morgan MS (Portrait) (cropped).jpg",
-  "sha256": "2be26f1e9b4d1000637c1dae6359e52b4616d033175f4a4f79508d7233db36de"
- },
- {
   "file": "receipt_02.jpg",
   "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/31/Reimbursement_Receipt_for_the_Refund_Service_Fees_of_China_Railway.jpg",
   "license": "Public domain",
@@ -372,18 +348,6 @@
   "sha256": "45293944c7db1a9ac610f74cee1528a39c17a2ba86f4f6e3858e7a34f5162937"
  },
  {
-  "file": "notebook_01.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/31/Augustus_John_by_George_Charles_Beresford_%281902%29_%28NPG_x13487%29.jpg",
-  "license": "Public domain",
-  "doc_type": "notebook",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 574,
-  "height": 800,
-  "title": "File:Augustus John by George Charles Beresford (1902) (NPG x13487).jpg",
-  "sha256": "8a04918d5c10554708dfdc937c05efea05d2f6dad1626fe787d8989f86c737b7"
- },
- {
   "file": "form_02.jpg",
   "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/41/A_woman_starts_to_fill_in_an_employee_evaluation_form_in_pen.jpg",
   "license": "CC BY 2.0",
@@ -396,30 +360,6 @@
   "sha256": "654d42cc3e544e1ddfd432a44a56691d8f666b00dbd67c9f86e5692f3fecce25"
  },
  {
-  "file": "form_03.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/af/Filled-in_canal_-_geograph.org.uk_-_1726930.jpg",
-  "license": "CC BY-SA 2.0",
-  "doc_type": "form",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 796,
-  "title": "File:Filled-in canal - geograph.org.uk - 1726930.jpg",
-  "sha256": "7f06d7c9c89f4390bd3cbf1e0c18455541c9a7ac516f3769912de5b589bf549b"
- },
- {
-  "file": "form_04.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/42/EXTERIOR_DETAIL_OF_55-GALLON_WATER_FILLED_DRUMS_THAT_FORM_THE_CORE_OF_THE_PASSIVE_SOLAR_HEATING_SYSTEM_OF_THIS_HOME..._-_NARA_-_555314.jpg",
-  "license": "Public domain",
-  "doc_type": "form",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 870,
-  "title": "File:EXTERIOR DETAIL OF 55-GALLON WATER FILLED DRUMS THAT FORM THE CORE OF THE PASSIVE SOLAR HEATING SYSTEM OF THIS HOME... - NARA - 555314.jpg",
-  "sha256": "50f7de28762c9d4618ba4e2c9a25900b7b48f07a3616ad77e92df05d98953185"
- },
- {
   "file": "form_05.jpg",
   "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/ae/HK_%E4%B8%8A%E7%92%B0_Sheung_Wan_%E6%A3%9F%E8%A8%98_Tung_Kee_Restaurant_food_order_list_form_night_Nov-2013_02.JPG",
   "license": "CC BY-SA 3.0",
@@ -428,7 +368,7 @@
   "gt_quad": null,
   "width": 1280,
   "height": 956,
-  "title": "File:HK \u4e0a\u74b0 Sheung Wan \u68df\u8a18 Tung Kee Restaurant food order list form night Nov-2013 02.JPG",
+  "title": "File:HK 上環 Sheung Wan 棟記 Tung Kee Restaurant food order list form night Nov-2013 02.JPG",
   "sha256": "f40db48669d2317826bd0ed1ef5b46c9a3f5d948e5d057788dd7efc98f882f92"
  },
  {
@@ -440,20 +380,8 @@
   "gt_quad": null,
   "width": 1280,
   "height": 1714,
-  "title": "File:HK \u4e0a\u74b0 Sheung Wan \u68df\u8a18 Tung Kee Restaurant food order list form night Nov-2013 01.JPG",
+  "title": "File:HK 上環 Sheung Wan 棟記 Tung Kee Restaurant food order list form night Nov-2013 01.JPG",
   "sha256": "bd2752b167ad548958ae0ea02117881bd557931bf828f3a3b2a4316d0a124cd7"
- },
- {
-  "file": "form_07.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/15/Interior_detail_of_55-gallon_water_filled_drums_that_form_the_core_of_the_passive_solar_heating_system_of_this_home_near_Corrales%2C_New_Mexico...%2C_04-1974_%286919895862%29.jpg",
-  "license": "No restrictions",
-  "doc_type": "form",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 864,
-  "title": "File:Interior detail of 55-gallon water filled drums that form the core of the passive solar heating system of this home near Corrales, New Mexico..., 04-1974 (6919895862).jpg",
-  "sha256": "425aba2d30af80edf801cae670cc30577975454247e36d89cb5f0a831deea29e"
  },
  {
   "file": "business_card_01.jpg",
@@ -540,18 +468,6 @@
   "sha256": "b1bb60db2b434ed499d936993b040049b3b7b913625636f756a9da0b26d27e41"
  },
  {
-  "file": "article_01.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/9a/Child_laborer.jpg",
-  "license": "Public domain",
-  "doc_type": "article",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 946,
-  "title": "File:Child laborer.jpg",
-  "sha256": "80d125c426eea589ccdfcd88a2bafb9b2b468b457f3e0364dcf0fe592428e3b2"
- },
- {
   "file": "article_02.jpg",
   "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/cc/USA_Citizenship_document%2C_1892.jpg",
   "license": "CC BY-SA 4.0",
@@ -572,7 +488,7 @@
   "gt_quad": null,
   "width": 1280,
   "height": 2053,
-  "title": "File:Printed document titled \u201cTo the People of Missouri,\u201d Washington, signed W.H. Ashley, April 10, 1836.jpg",
+  "title": "File:Printed document titled “To the People of Missouri,” Washington, signed W.H. Ashley, April 10, 1836.jpg",
   "sha256": "4f3eca2d54ed1b047e24b74bf1f1b1a5808b9d8f1a0ace6921453a1214ccad4c"
  },
  {
@@ -586,18 +502,6 @@
   "height": 1652,
   "title": "File:Printed document decorated with the Union Flag and signed by Jack West Argue, Bruce Cole, Norman Purvis, Gerald Houle, Jack Galt, Jean Whitton and Vera Houle, all of Deseronto, Ontario. (10171957076).jpg",
   "sha256": "486981e7ec54fc3a058311bd200094376e7c17534cc37aaa23193a96636ce975"
- },
- {
-  "file": "article_05.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/76/Actiniaria.jpg",
-  "license": "Public domain",
-  "doc_type": "article",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 821,
-  "title": "File:Actiniaria.jpg",
-  "sha256": "2ed798d6ee729dc95294445245364bd979701f6714be20bfcabdb5669d322334"
  },
  {
   "file": "article_06.jpg",
@@ -622,54 +526,6 @@
   "height": 960,
   "title": "File:Legal consultant certificate printed by Taipei Bar Association at Taipei City Mall 20150926.jpg",
   "sha256": "2e42a589bcb4b3048da780af8727ff83216dd33978de47dedbcef4e4703214ca"
- },
- {
-  "file": "document_03.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Pink_twinged_daisy_on_table_edit.jpg",
-  "license": "CC BY-SA 3.0",
-  "doc_type": "document",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 960,
-  "title": "File:Pink twinged daisy on table edit.jpg",
-  "sha256": "db7a1628687f514a561def58d23d10df452547347a74b4cb8766a1ddd15bc0cf"
- },
- {
-  "file": "document_04.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/33/Table-cloth_2008-1.jpg",
-  "license": "CC BY-SA 3.0",
-  "doc_type": "document",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 877,
-  "title": "File:Table-cloth 2008-1.jpg",
-  "sha256": "2b7046440376f0f6ae3a6b3837b1360ff91f31a0259fcb874f73e36caab45151"
- },
- {
-  "file": "document_05.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e8/Vector_2022%2C_table_of_contents_line_and_header_line.jpg",
-  "license": "CC BY-SA 4.0",
-  "doc_type": "document",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 679,
-  "title": "File:Vector 2022, table of contents line and header line.jpg",
-  "sha256": "3a08fe2fe2c92f47bf153358f3b5a154b60e67aef1126db302542b9340dac2bf"
- },
- {
-  "file": "document_06.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/8/88/Mondial_Ping_-_Men%27s_Doubles_-_Semifinals_-_34.jpg",
-  "license": "CC BY-SA 3.0",
-  "doc_type": "document",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 853,
-  "title": "File:Mondial Ping - Men's Doubles - Semifinals - 34.jpg",
-  "sha256": "bf671ff69b5eb4b6569f764c968cb8014700d902f1105fcc0d99abcd1f5d9b03"
  },
  {
   "file": "document_07.jpg",
@@ -1360,18 +1216,6 @@
   "height": 800,
   "title": "File:Desktop workspace in transition 2008.jpg",
   "sha256": "58b3aa933e6117b12775aadf5a9e75200ffac99e48fdc95d3a5a70dc5c366f2d"
- },
- {
-  "file": "notebook_06.jpg",
-  "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Paneer_with_Chapati_-_Sister_made%2C_Kolkata_-_West_bengal_%28P-5%29.jpg",
-  "license": "CC BY-SA 4.0",
-  "doc_type": "notebook",
-  "dataset": "commons",
-  "gt_quad": null,
-  "width": 1280,
-  "height": 2560,
-  "title": "File:Paneer with Chapati - Sister made, Kolkata - West bengal (P-5).jpg",
-  "sha256": "bd2f00f4aba3070a84a67d9a1de32ba56bca4740ea96de1d6a7ff6507d1fa97c"
  },
  {
   "file": "notebook_07.jpg",
