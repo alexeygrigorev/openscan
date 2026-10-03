@@ -58,6 +58,12 @@ jobs:
       - name: Unit tests + assemble debug APK
         run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace --console=plain
 
+      # Instrumented tests and the on-device eval benchmark need androidTest
+      # to compile; a signature change in main sources used to be able to
+      # break it without CI noticing.
+      - name: Compile instrumented tests
+        run: ./gradlew :app:compileDebugAndroidTestKotlin --stacktrace --console=plain
+
       - name: Rename debug APK
         run: |
           apk=app/build/outputs/apk/debug/app-debug.apk

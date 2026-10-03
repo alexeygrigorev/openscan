@@ -14,6 +14,8 @@ import io.github.alexeygrigorev.openscan.data.DocumentFiles
 import io.github.alexeygrigorev.openscan.data.DocumentsRepository
 import io.github.alexeygrigorev.openscan.data.OpenScanDatabase
 import io.github.alexeygrigorev.openscan.data.PageEntity
+import io.github.alexeygrigorev.openscan.data.SettingsRepository
+import io.github.alexeygrigorev.openscan.scan.FeedbackUploader
 import io.github.alexeygrigorev.openscan.scan.Images
 import io.github.alexeygrigorev.openscan.scan.JpegExporter
 import io.github.alexeygrigorev.openscan.scan.PageImporter
@@ -21,6 +23,7 @@ import io.github.alexeygrigorev.openscan.scan.PdfExporter
 import java.io.File
 import java.util.zip.ZipFile
 import kotlin.math.abs
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -57,7 +60,17 @@ class BatchPipelineInstrumentedTest {
             .allowMainThreadQueries()
             .build()
         val files = DocumentFiles(context)
-        val repo = DocumentsRepository(db.openscanDao(), files, PageImporter(context))
+        // Telemetry is inert here: the fake never enables the toggle and
+        // doUpload would drop the attempt even if it did.
+        val uploader = FeedbackUploader(
+            settings = object : SettingsRepository {
+                override val feedbackUploadEnabled = MutableStateFlow(false)
+                override suspend fun setFeedbackUploadEnabled(enabled: Boolean) {}
+            },
+            appVersion = "test",
+            doUpload = { _, _ -> },
+        )
+        val repo = DocumentsRepository(db.openscanDao(), files, PageImporter(context), uploader)
 
         try {
             val documentId = repo.createDocument("E2E batch")
