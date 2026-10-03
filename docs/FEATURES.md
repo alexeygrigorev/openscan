@@ -1,8 +1,9 @@
 # OpenScan — Feature Catalog
 
 OpenScan is a free, open-source document scanner for Android: CamScanner's core
-workflow with **no watermarks, no ads, no account, and no cloud**. Everything
-runs on-device.
+workflow with **no watermarks, no ads, no account, and no cloud by default**
+(the one exception is a single, off-by-default upload toggle in Settings —
+see [`PRIVACY.md`](PRIVACY.md)). Everything else runs on-device.
 
 This document is the product contract. It maps every CamScanner feature (from
 the 2026-10 research in [`RESEARCH.md`](RESEARCH.md)) to our priority and
@@ -29,9 +30,10 @@ current status.
 | PDF export (multi-page) | Free but **watermarked** | P0 | ✅ shipped — never watermarked |
 | Share / export targets | Free | P0 | ✅ shipped (system share sheet, FileProvider) |
 | Import from gallery | Free | P0 | ✅ shipped (photo picker, no storage permission) |
-| Fully offline, no account, no ads | Mixed | P0 | ✅ shipped — zero permissions declared |
+| Fully offline, no account, no ads | Mixed | P0 | ✅ shipped — offline by default; the single networked feature is the off-by-default scan-sharing toggle (see [PRIVACY.md](PRIVACY.md)) |
 | Document library: rename, delete documents and pages | Partial free | P0 | ✅ shipped (Room, offline-first) |
 | OCR (text recognition) | Preview-only free; full is premium | P1 | ✅ shipped (on-device, unlimited, copyable) |
+| Opt-in scan sharing (improve detection) | Silent cloud uploads | P1 | ✅ shipped — off by default, no identifiers, uploads auto-deleted after ≤30 days |
 | Page rotation | Free | P0 | ✅ shipped (90° steps, baked into the JPEG) |
 | Page reorder (move pages within a document) | Partial free | P0 | ✅ shipped (Reorder mode in the document screen: move pages up/down; order persists and drives both exports) |
 | JPEG export per page (share as images) | Free but **watermarked** | P0 | ✅ shipped — never watermarked (single page shares a JPEG as-is; multiple pages share a zip of JPEGs, no re-encoding) |
@@ -63,15 +65,18 @@ current status.
 
 1. **Never a watermark.** Exported PDFs and images are clean, always. There is
    one tier and it is free.
-2. **No ads, no tracking, no account.** The built APK has **no `INTERNET`
-   permission** (Google's libraries request it; OpenScan strips it from the
-   merged manifest): the app *cannot* phone home, and the library telemetry
-   it bundles cannot either. Capture happens inside Google Play services;
-   export uses the system share sheet. Any future exception must go through a
-   public issue and stay optional + off by default.
+2. **No ads, no tracking, no account.** OpenScan ships no analytics or crash
+   SDKs, and Google's library telemetry stays stripped (`ACCESS_NETWORK_STATE`
+   is removed from the merged manifest). The app declares `INTERNET` for
+   exactly one feature: the **off-by-default** "send pictures to our servers"
+   toggle, which uploads scan pages only while enabled (fire-and-forget, no
+   retries, no identifiers). With the toggle off nothing ever leaves the
+   device. Any further networked feature must go through a public issue and
+   stay optional + off by default.
 3. **Zero permission creep.** No camera, storage, contacts, or location in the
    Play build — ever. If the own-pipeline F-Droid flavor lands, it adds
    `CAMERA` and nothing else, in its own flavor.
-4. **On-device processing only.** Scans of passports, IDs, and contracts never
-   leave the phone. This is the marketing headline and the engineering
-   constraint.
+4. **On-device processing by default.** Scans of passports, IDs, and contracts
+   never leave the phone unless the user turns on the off-by-default
+   scan-sharing toggle — and even then pages are used solely to improve
+   detection, carry no identifiers, and auto-delete within 30 days.

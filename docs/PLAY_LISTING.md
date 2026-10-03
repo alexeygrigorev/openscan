@@ -49,7 +49,8 @@ Scanning a document should not cost a subscription — or your privacy.
 
 OpenScan turns your phone into a document scanner that just works: point,
 scan, get a clean, straight, readable PDF. **No watermarks. No ads. No
-account. No cloud.** Free and open source.
+account. No cloud by default** — nothing leaves your phone unless you turn
+on the optional feedback upload in Settings. Free and open source.
 
 ◼ WHAT IT DOES
 • Scan multipage documents with automatic edge detection and perspective

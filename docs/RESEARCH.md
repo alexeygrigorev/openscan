@@ -42,16 +42,21 @@ Aug 31 2026). **Licensing trap avoided:** iText is AGPL/commercial — never.
 
 The four "no"s that counter CamScanner's four biggest complaints:
 
-> **No watermark. No ads. No account. No cloud.**
+> **No watermark. No ads. No account. No cloud by default.**
 
-Proof, not promises: the built APK has **no `INTERNET` permission** — Google's
-libraries merge network permissions into every app, and OpenScan strips them
-from the merged manifest, so the app *cannot* exfiltrate anything (and the
-library telemetry it bundles cannot either). Verify on any build:
-`aapt2 dump badging app-release.apk | grep uses-permission` — the only line
-is AndroidX's package-scoped receiver guard, which grants no capability.
-Open source (Apache-2.0) makes every claim auditable, which matters for a
-document scanner specifically (see the 2019 incident).
+Proof, not promises: the app ships no analytics or crash SDKs, Google's
+library telemetry stays stripped from the merged manifest
+(`ACCESS_NETWORK_STATE` is removed), and the declared `INTERNET` permission
+backs exactly one feature — the **off-by-default** "send pictures to our
+servers" toggle, which uploads scan pages only while it is enabled
+(fire-and-forget, no retries, no identifiers). With the toggle off, no scan
+content is ever transmitted and nothing is queued for later. Verify on any
+build: `aapt2 dump badging app-release.apk | grep uses-permission` — besides
+AndroidX's package-scoped receiver guard (which grants no capability), the
+only entry is that one `INTERNET`, documented in
+[`PRIVACY.md`](PRIVACY.md). Open source (Apache-2.0) makes every claim
+auditable, which matters for a document scanner specifically (see the 2019
+incident).
 
 Target audiences: displaced Microsoft Lens users, privacy-conscious / FOSS
 communities (r/fossdroid), anyone scanning IDs and contracts who balks at
