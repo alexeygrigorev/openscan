@@ -18,6 +18,22 @@ android {
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Opt-in telemetry endpoint (docs/PRIVACY.md). Both blank by default:
+        // without them the built APK ships an inert ".invalid" endpoint and
+        // uploads fail fast even when the user opts in. Never commit real
+        // values — CI reads them from repo secrets, locals from
+        // ~/.gradle/gradle.properties.
+        buildConfigField(
+            "String",
+            "TELEMETRY_UPLOAD_URL",
+            "\"${telemetryConfigValue("OPENSCAN_TELEMETRY_UPLOAD_URL")}\"",
+        )
+        buildConfigField(
+            "String",
+            "TELEMETRY_TOKEN",
+            "\"${telemetryConfigValue("OPENSCAN_TELEMETRY_UPLOAD_TOKEN")}\"",
+        )
     }
 
     buildTypes {
@@ -57,8 +73,15 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
+
+/** Gradle property first, then environment variable, then empty. */
+fun telemetryConfigValue(name: String): String =
+    (project.findProperty(name) as? String)
+        ?: System.getenv(name)
+        ?: ""
 
 dependencies {
     implementation(libs.androidx.core.ktx)

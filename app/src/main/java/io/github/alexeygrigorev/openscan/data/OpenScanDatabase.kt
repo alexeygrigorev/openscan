@@ -1,6 +1,7 @@
 package io.github.alexeygrigorev.openscan.data
 
 import android.content.Context
+import io.github.alexeygrigorev.openscan.BuildConfig
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -66,7 +67,18 @@ class AppContainer(context: Context) {
     val importer = io.github.alexeygrigorev.openscan.scan.PageImporter(appContext)
     val settings: SettingsRepository =
         DataStoreSettingsRepository(DataStoreSettingsRepository.createDefaultDataStore(appContext))
-    val uploader = io.github.alexeygrigorev.openscan.scan.FeedbackUploader(settings, appVersionName())
+
+    // Endpoint/token come in at build time (OPENSCAN_TELEMETRY_UPLOAD_URL /
+    // OPENSCAN_TELEMETRY_UPLOAD_TOKEN gradle properties or env vars); when
+    // absent the uploader falls back to an inert ".invalid" endpoint.
+    val uploader = io.github.alexeygrigorev.openscan.scan.FeedbackUploader(
+        settings = settings,
+        appVersion = appVersionName(),
+        endpoint = BuildConfig.TELEMETRY_UPLOAD_URL.ifBlank {
+            io.github.alexeygrigorev.openscan.scan.FeedbackUploader.ENDPOINT
+        },
+        token = BuildConfig.TELEMETRY_TOKEN,
+    )
     val repository = DocumentsRepository(database.openscanDao(), files, importer, uploader)
 
     private fun appVersionName(): String = try {

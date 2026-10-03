@@ -27,7 +27,8 @@ class FeedbackUploader(
     private val settings: SettingsRepository,
     private val appVersion: String,
     private val endpoint: String = ENDPOINT,
-    private val doUpload: (URL, File) -> Unit = ::httpPut,
+    private val token: String = "",
+    private val doUpload: (URL, File) -> Unit = { url, file -> httpPut(url, file, token) },
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -55,7 +56,12 @@ class FeedbackUploader(
     companion object {
         private const val TAG = "FeedbackUploader"
 
-        /** Upload sink. TODO: fill in the real CloudFront domain (follow-up). */
+        /**
+         * Fallback upload sink when the app is built without
+         * TELEMETRY_UPLOAD_URL/TELEMETRY_TOKEN (see app/build.gradle.kts):
+         * ".invalid" never resolves, so uploads fail fast and are dropped —
+         * the opt-in toggle stays inert rather than pointing somewhere real.
+         */
         const val ENDPOINT = "https://REPLACE-ME.invalid/openscan-uploads/"
 
         private const val TIMEOUT_MS = 10_000
@@ -74,8 +80,12 @@ class FeedbackUploader(
             }
         }
 
-        /** Blocking PUT of [file] to [url]; throws are handled by the caller. */
-        private fun httpPut(url: URL, file: File) {
+        /**
+         * Blocking PUT of [file] to [url] with the shared Bearer token; the
+         * server rejects anything else, so the check doubles as our
+         * abuse-protection handshake. Throws are handled by the caller.
+         */
+        private fun httpPut(url: URL, file: File, token: String) {
             val connection = url.openConnection() as HttpURLConnection
             try {
                 connection.requestMethod = "PUT"
@@ -84,6 +94,7 @@ class FeedbackUploader(
                 connection.doOutput = true
                 connection.setFixedLengthStreamingMode(file.length())
                 connection.setRequestProperty("Content-Type", "image/jpeg")
+                connection.setRequestProperty("Authorization", "Bearer $token")
                 connection.connect()
                 file.inputStream().use { input ->
                     connection.outputStream.use { output -> input.copyTo(output) }
