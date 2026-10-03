@@ -286,41 +286,42 @@ on the final tree. Accepted residuals unchanged: `passport_04` (GT 0.69), `artic
 (frame-filling print), `driver_license_04/07`, `id_card_04` slant; 2 GT quads off-canvas
 score 0 by construction.
 
-<!-- review-2026-10-03c -->
-## Detector v9 (v13 corner fix + guards) + clean-corpus on-device run (2026-10-03, night)
+<!-- review-2026-10-03d -->
+## Detector v17 port (inner-switch guards + paperness parity) — on-device run (2026-10-03, late night)
 
-**Detector change (v8 → v9).** Four fixes, offline-validated in the Python twin and ported
-1:1 to [`ScanPipeline.kt`](../app/src/main/java/io/github/alexeygrigorev/openscan/scan/ScanPipeline.kt):
+**Detector change (v9 → v17).** Offline-validated in the Python twin (`improved_v17`,
+runs under `/tmp/openscan-pyquad-j79/`) and ported 1:1 to
+[`ScanPipeline.kt`](../app/src/main/java/io/github/alexeygrigorev/openscan/scan/ScanPipeline.kt):
 
-1. **`fitLine` output read as CV_32F** (it is not CV_64F) and **`lineIsect` endpoint
-   order fixed** — corner rays now extend in the right direction, so line-fit refinement
-   lands corners on real edges (the single-line v13 fix; previously several refined quads
-   were pulled inside/off the document).
-2. **Big-winner side-support check** — a large winner with ≥2 sides cutting through open
-   papery space (no edge line along them) is promoted to the frame; recovers full-bleed
-   prints grabbed as a band.
-3. **Refined-corner frame clamp** — fitted lines can intersect outside the photo; a scan
-   crop never extends beyond the picture.
-4. Loose-fill last-resort un-gated (side extension repairs it), and Mat releases moved
-   behind the early return (no leak on refusal).
+1. **Thin-band inner guard** — an inner-switch candidate whose bbox min-dimension is
+   < 25 % of the frame's is a read of ruled lines / a text block, not a nested document
+   (fixes `receipt_06`: 3-line band → full receipt).
+2. **Tiny-sliver inner guard** — a strong winner (pap ≥ 0.85, af ≥ 0.30) is not dethroned
+   by a barely edge-aligned inner (af < 0.10); that inner is a feature inside the document
+   (fixes `invoice_07`: exact full-frame → paper-edge quad).
+3. **`frameIsPaperish` V-threshold parity** — the bright-pixel fraction now counts V > 110
+   (was V > 0; matches the Python `frame_is_paperish`).
 
-Evidence trail: the v13 one-liner was visually judged **ACCEPT** on 27 key images
-(25 better/equal, 2 narrow residuals) in the tuning workspace; on-device, per-image GT IoU
-improved on 23/28 with the headline win `driver_license_06` 0.613 → 0.946 and regressions
-at noise level (worst −0.013).
+Python twin: 82/82 detected, GT IoU mean 0.8004 unchanged, exactly 2 quads changed
+(`receipt_06`, `invoice_07`), zero GT-scored regressions. Visual QA was programmatic that
+session (image Reads unavailable): Sobel edge-alignment, HSV inside/outside separation,
+crop text-density — plus host-side pixel sampling; both confirm the two fixes and that
+`notebook_07` / `receipt_01` / `passport_04` are byte-unchanged.
 
-**Clean-corpus on-device run** (emulator `openscan-gms35`, manual `am instrument`,
-82-photo corpus above):
+**On-device A/B** (emulator `test-1`, manual `am instrument`, 95-photo index):
 
-| Metric | v8 run (95-photo corpus) | **v9 run (82-photo corpus)** |
+| Metric | v9 run (run-v13b) | **v17 run (run-v17)** |
 | --- | --- | --- |
-| Detection rate | 93 / 95 (2 non-documents refused) | **82 / 82** |
-| GT IoU (28 valid GT quads) | median 0.926 · 16/28 ≥ 0.9 | **median 0.951 · 17/28 ≥ 0.9** |
-| PDF export | 66/66 | **55/55** |
-| Watermark check (`pdftotext`) | 66/66 empty | **55/55 empty** |
+| Detection (raw, 95-photo index) | 93 / 95 | 92 / 95 — the extra refusal is `form_07`, a known junk scene (dark wine-cellar, no document; quarantined from the 82-photo clean corpus): correct abstention |
+| GT IoU (26 valid GT quads) | median 0.955 · mean 0.800 · 17/26 ≥ 0.9 | **identical** — GT-scored quads byte-stable |
+| PDF export | 66/66 | 65/65 (one fewer = `form_07`'s junk page) |
+| Watermark check (`pdftotext`) | 66/66 empty | **65/65 empty** |
 
-The frame clamp is a no-op on this corpus (zero quads moved vs the pre-clamp build) — it
-guards the `article_03`-class over-extension family seen offline. `app` unit tests green
-on the final tree. Accepted residuals unchanged: `passport_04` (GT 0.69), `article_03`
-(frame-filling print), `driver_license_04/07`, `id_card_04` slant; 2 GT quads off-canvas
-score 0 by construction.
+On-device movement beyond the two intended fixes: `id_card_04` (crop +1 px wide, GT IoU
+stable), `notebook_02` (crop 996×480 → 1086×497, same tone — slight relaxation),
+`notebook_07` / `passport_08` (known-fail / GT-off-canvas scenes). No regressions.
+
+**Known fails (accepted, unchanged):** `notebook_07` (pencil-case quad, 2.3 % of scene),
+`receipt_01` (top-left quarter quad, 24.9 % — one earlier overlay read mis-saw it as
+full-frame because of green background objects; the stored quad is verified),
+`passport_04` (loose right edge, GT IoU 0.68, usable).

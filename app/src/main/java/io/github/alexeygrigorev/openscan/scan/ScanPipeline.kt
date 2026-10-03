@@ -7,6 +7,7 @@ import org.opencv.core.Core
 import org.opencv.core.Mat
 import org.opencv.core.MatOfPoint
 import org.opencv.core.MatOfPoint2f
+import org.opencv.core.Scalar
 import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
 import kotlin.math.abs
@@ -198,6 +199,23 @@ private object QuadDetector {
             if (c.af < 0.06 || c.af >= 0.85 * best.af) continue
             if (c.pap <= best.pap + 0.02) continue
             if (containment(c.q, best.q) < 0.85) continue
+            // A band-like inner (bbox min-dim < 25% of the frame's) is a read of
+            // ruled lines or a text block, not a nested document (3-line band on
+            // a full receipt).
+            var minX = c.q[0]; var maxX = c.q[0]
+            var minY = c.q[1]; var maxY = c.q[1]
+            for (i in 1..3) {
+                val x = c.q[2 * i]; val y = c.q[2 * i + 1]
+                if (x < minX) minX = x
+                if (x > maxX) maxX = x
+                if (y < minY) minY = y
+                if (y > maxY) maxY = y
+            }
+            if (minOf(maxX - minX, maxY - minY) < 0.25 * minOf(sw.toDouble(), sh.toDouble())) continue
+            // A strong winner (papery, well edge-aligned) is not dethroned by a
+            // barely edge-aligned inner — that inner is a feature inside the
+            // document (lottery box on a full-frame receipt).
+            if (best.pap >= 0.85 && best.af >= 0.30 && c.af < 0.10) continue
             best = c
             break
         }
@@ -403,7 +421,10 @@ private object QuadDetector {
             // fraction of pixels with V > 110
             val vCh = Mat()
             Core.extractChannel(strip, vCh, 2)
-            bright += Core.countNonZero(vCh)
+            val brightMask = Mat()
+            Core.compare(vCh, Scalar(110.0), brightMask, Core.CMP_GT)
+            bright += Core.countNonZero(brightMask)
+            brightMask.release()
             vCh.release()
             strip.release()
         }
