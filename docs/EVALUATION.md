@@ -437,3 +437,109 @@ needed for mixed blocked/extended sides regress `passport_07` (−0.196) / `id_c
 tooling for a future attack. `notebook_07`: page texture (std ≈ 6 under hand occlusion)
 is inseparable from desk/laptop by this mask (threshold 2.0 would mask `receipt_01`'s
 table, p90 = 1.9) — pencil-case quad stays, py and device. `passport_04` (0.68) unchanged.
+
+## Detector v19 (extension veto for boundary-complete winners) — offline + on-device (2026-10-03, late night)
+
+**Diagnosis carried over from v18.** On device, `receipt_01`'s CLAHE pass *does* find
+the ticket (pool dump: score 1.10, sup 0.71, fill 0.96, bbox 29–76 % × 13–90 %) — and
+then `extend_sides` grows it over the papery-looking table to near-frame. The four
+earlier guard shapes (blunt side guard, beyond-density probes, deep probes, per-side
+corner projection) all probed *outward* for evidence and were rejected on corpus
+regressions. The unexplored signal was the winner's *own* election evidence: a quad
+elected with high perimeter support is not a partial read, and "repairing" it is the
+bug.
+
+**Detector change (v18 → v19).** Extension veto: after refinement, if the *elected*
+candidate's support (`best.sup`, pre-refine) is ≥ 0.65 **and** `extend_sides` inflates
+the quad's area by ≥ 1.8×, the extension is reverted wholesale and the pre-extension
+quad is kept. Low-support partial reads (the repair case extension exists for) are
+never eligible; the area-ratio condition spares boundary-complete winners whose
+extension is a legitimate margin completion. Support is judged on the elected
+candidate, not the refined quad — line-fit refinement can drag sides off the very
+edges that won the election (first device run with post-refine support did *not* fire
+on `receipt_01`; switched to `best.sup` and it does). `ScanPipeline` debug sink gains
+an `extension_veto` flag.
+
+**Threshold provenance (py twin, 82 photos).** Only five corpus scenes have a
+high-support winner whose extension moves the quad at all: `form_01` (sup 1.0, growth
+1.30× — needed: extension restores the header), `letter_04` (0.833, 1.42× — needed),
+`invoice_07` (0.833, 1.07×), `article_03` (0.979, 1.10×), `business_card_02` (1.0,
+2.46× — harmful: near-frame desk read). Any threshold in (1.42, 2.46) separates them;
+1.8 sits centrally. With the veto: 82/82 detected, GT IoU mean 0.8004 byte-identical
+to v18, exactly one quad changed — `business_card_02` near-frame desk → the card
+itself (an improvement; the scene has no GT, judged visually).
+
+**On-device A/B** (run-v19 vs run-v18, emulator-5556, 95-photo index):
+
+| Metric | run-v18 | **run-v19** |
+| --- | --- | --- |
+| Detection (raw) | 92 / 95 | **92 / 95** (unchanged) |
+| GT IoU (26 valid) | mean 0.8004 · median 0.9575 · 17/26 ≥ 0.9 | **byte-identical** |
+| Quad diffs | — | **exactly 2, both fixes**: `receipt_01` near-frame table → the dagticket; `business_card_02` desk → the card |
+| `extension_veto` flags | — | fired on `receipt_01` + `business_card_02` only; `form_01`/`letter_04` keep their extension |
+| PDF export | 65/65 | **65/65** |
+| Watermark check (`pdftotext`) | 65/65 empty | **65/65 empty** |
+
+Unit tests green. Independent visual judge over all ten changed/residual renders
+(overlays + crops, v18 vs v19): **PASS** — `receipt_01` crop fully readable
+("ijsselland ziekenhuis / Dagticket / Patiëntnummer: 1765113"), `business_card_02`
+quad locked on the card corners, `notebook_07` byte-unchanged (documented residual).
+
+**Residuals unchanged:** `notebook_07` (hand-occluded pages inseparable from
+desk/laptop by the texture mask; pencil-case quad, py and device) and `passport_04`
+(GT IoU 0.68, loose). `receipt_01` on device is now **fixed**; py↔device parity for
+it is moot (py rescues it via texture, device via the veto — different paths, same
+outcome).
+
+## Detector v19 (extension veto for boundary-complete winners) — offline + on-device (2026-10-03, late night)
+
+**Diagnosis carried over from v18.** On device, `receipt_01`'s CLAHE pass *does* find
+the ticket (pool dump: score 1.10, sup 0.71, fill 0.96, bbox 29–76 % × 13–90 %) — and
+then `extend_sides` grows it over the papery-looking table to near-frame. The four
+earlier guard shapes (blunt side guard, beyond-density probes, deep probes, per-side
+corner projection) all probed *outward* for evidence and were rejected on corpus
+regressions. The unexplored signal was the winner's *own* election evidence: a quad
+elected with high perimeter support is not a partial read, and "repairing" it is the
+bug.
+
+**Detector change (v18 → v19).** Extension veto: after refinement, if the *elected*
+candidate's support (`best.sup`, pre-refine) is ≥ 0.65 **and** `extend_sides` inflates
+the quad's area by ≥ 1.8×, the extension is reverted wholesale and the pre-extension
+quad is kept. Low-support partial reads (the repair case extension exists for) are
+never eligible; the area-ratio condition spares boundary-complete winners whose
+extension is a legitimate margin completion. Support is judged on the elected
+candidate, not the refined quad — line-fit refinement can drag sides off the very
+edges that won the election (first device run with post-refine support did *not* fire
+on `receipt_01`; switched to `best.sup` and it does). `ScanPipeline` debug sink gains
+an `extension_veto` flag.
+
+**Threshold provenance (py twin, 82 photos).** Only five corpus scenes have a
+high-support winner whose extension moves the quad at all: `form_01` (sup 1.0, growth
+1.30× — needed: extension restores the header), `letter_04` (0.833, 1.42× — needed),
+`invoice_07` (0.833, 1.07×), `article_03` (0.979, 1.10×), `business_card_02` (1.0,
+2.46× — harmful: near-frame desk read). Any threshold in (1.42, 2.46) separates them;
+1.8 sits centrally. With the veto: 82/82 detected, GT IoU mean 0.8004 byte-identical
+to v18, exactly one quad changed — `business_card_02` near-frame desk → the card
+itself (an improvement; the scene has no GT, judged visually).
+
+**On-device A/B** (run-v19 vs run-v18, emulator-5556, 95-photo index):
+
+| Metric | run-v18 | **run-v19** |
+| --- | --- | --- |
+| Detection (raw) | 92 / 95 | **92 / 95** (unchanged) |
+| GT IoU (26 valid) | mean 0.8004 · median 0.9575 · 17/26 ≥ 0.9 | **byte-identical** |
+| Quad diffs | — | **exactly 2, both fixes**: `receipt_01` near-frame table → the dagticket; `business_card_02` desk → the card |
+| `extension_veto` flags | — | fired on `receipt_01` + `business_card_02` only; `form_01`/`letter_04` keep their extension |
+| PDF export | 65/65 | **65/65** |
+| Watermark check (`pdftotext`) | 65/65 empty | **65/65 empty** |
+
+Unit tests green. Independent visual judge over all ten changed/residual renders
+(overlays + crops, v18 vs v19): **PASS** — `receipt_01` crop fully readable
+("ijsselland ziekenhuis / Dagticket / Patiëntnummer: 1765113"), `business_card_02`
+quad locked on the card corners, `notebook_07` byte-unchanged (documented residual).
+
+**Residuals unchanged:** `notebook_07` (hand-occluded pages inseparable from
+desk/laptop by the texture mask; pencil-case quad, py and device) and `passport_04`
+(GT IoU 0.68, loose). `receipt_01` on device is now **fixed**; py↔device parity for
+it is moot (py rescues it via texture, device via the veto — different paths, same
+outcome).

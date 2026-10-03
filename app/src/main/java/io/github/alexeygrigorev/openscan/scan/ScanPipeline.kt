@@ -83,6 +83,13 @@ private object QuadDetector {
     // fraction are ignored
     private const val TEXTURE_MAX_COMPS = 3
     private const val TEXTURE_MIN_FILL = 0.5 // ragged multi-object merges are not documents
+    private const val EXTEND_SUP_GATE = 0.65 // extension veto: only boundary-complete
+    // winners (perimeter support >= this) are eligible — low-support partial reads
+    // are what extension exists to repair
+    private const val EXTEND_AREA_RATIO = 1.8 // veto extension when it would grow a
+    // boundary-complete winner by this factor: the quad already sits on its true
+    // edge lines, so huge growth is annexed papery background (receipt on a
+    // papery-looking table, card read merged with its desk)
 
     /** One scored proposal: quad + the evidence it was scored against. */
     private class Cand(
@@ -289,9 +296,23 @@ private object QuadDetector {
             }
         }
         var quad = best.q
+        var extensionVetoed = false
         if (!best.texture) {
             quad = refineQuad(quad, rawEdges[best.edgesIdx]!!)
+            // v19 extension veto: a winner elected with well-supported boundary
+            // edges is boundary-complete; if growing it inflates the area hugely,
+            // the growth walked past the true edge into papery background — keep
+            // the pre-extension quad. Support is judged on the elected candidate
+            // (best.sup): line-fit refinement can drag sides off the very edges
+            // that won the election (crumpled receipt on a papery table).
+            val pre = quad.copyOf()
             quad = extendSides(quad, hsv, rawEdges[best.edgesIdx]!!, sw, sh)
+            if (best.sup >= EXTEND_SUP_GATE &&
+                polyArea(quad) >= EXTEND_AREA_RATIO * max(polyArea(pre), 1e-6)
+            ) {
+                quad = pre
+                extensionVetoed = true
+            }
         }
         // (texture-rescue winners skip refinement and side extension: the mask
         // outline is already the full blob, Canny edges are unreliable on these
@@ -306,6 +327,7 @@ private object QuadDetector {
                 mapOf(
                     "final" to quad.map { Math.round(it * 10.0) / 10.0 },
                     "texture_winner" to best.texture,
+                    "extension_veto" to extensionVetoed,
                 )
             )
             ScanPipeline.quadDebugSink?.invoke(dbg)
