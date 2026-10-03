@@ -197,3 +197,42 @@ close-up). The three MIDV booklets are built from the **detected crops** and cor
 no-detection inputs (9 pages from 10 ID cards, 9 from 10 passports): batch scanning verified
 end-to-end. No watermarks on any seen page. Notes:
 [`eval/judgments/notes_judge_pages_b.md`](eval/judgments/notes_judge_pages_b.md).
+
+<!-- review-2026-10-03b -->
+## Detector v8 ported into ScanPipeline + on-device re-run (2026-10-03, evening)
+
+The test-only detector inside [`ScanPipeline.kt`](../app/src/main/java/io/github/alexeygrigorev/openscan/scan/ScanPipeline.kt)
+was replaced with **detector v8**, tuned offline (95-photo corpus + MIDV ground truth in a
+Python twin, `/tmp/openscan-pyquad`) and ported 1:1 to Kotlin/OpenCV. Beyond the v3 recipe
+it adds: a 4th Canny pass on CLAHE-normalized gray, dual paperness floors (crisp-edge quads
+vs edge-free mask quads), fill-from-paperness for paper-solid candidates, near-full-frame
+damping, sliver→frame promotion, line-fit corner refinement, and side extension through
+papery pixels (repairs quads that cut off document content, e.g. `receipt_07`'s bottom
+fifth). Offline, v8 beats both the v3 recipe and the earlier candidates with **no
+per-sample ground-truth regression**: 93/95 detected (both misses are no-document scenes —
+a portrait and a table-tennis photo — where returning nothing is correct), GT IoU median
+**0.945**, 17/28 above 0.9 (v3: median 0.50, 8 above 0.9). Two independent visual judge
+passes over all 95 baseline-vs-v8 comparison sheets returned **PASS** with zero image-read
+failures (verdicts: `verdicts_v8_A/B.json` in the session workspace).
+
+**On-device re-run** (emulator, manual `am instrument`, same 95-photo corpus):
+
+| Metric | v3 run (morning) | **v8 run (this section)** |
+| --- | --- | --- |
+| Detection rate | 87 / 95 | **93 / 95** |
+| GT IoU (30 GT quads) | median 0.50 · 8/30 ≥ 0.9 | **median 0.928 · 16/30 ≥ 0.9** |
+| All 8 prior app fails | — | **all produce quads now** |
+| PDF export | 62/62 | **66/66** |
+| Watermark check (`pdftotext`) | 62/62 empty | **66/66 empty** |
+
+The two remaining detection misses (`document_01`, `document_06`) contain no document.
+Remaining known weak spots (documented, accepted): `invoice_07` locks background texture
+next to a small receipt (fixing it produced worse inner-stamp lock-ons — reverted);
+`driver_license_04/07` and `id_card_04` still slant on hand-held white-on-white cards;
+4 MIDV ground-truth quads lie (almost) entirely outside the captured frame and score 0 by
+construction. Device quads diverge from the Python twin on a handful of near-tie scenes
+(candidate flips from OpenCV version differences in Canny/CLAHE edges) — quality is
+equivalent within noise; sample overlays:
+[`detector_v8_driver_license_03.jpg`](eval/samples/detector_v8_driver_license_03.jpg) (0.07→0.97),
+[`detector_v8_passport_04.jpg`](eval/samples/detector_v8_passport_04.jpg) (none→0.78),
+[`detector_v8_receipt_07.jpg`](eval/samples/detector_v8_receipt_07.jpg) (bottom edge restored).
