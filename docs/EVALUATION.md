@@ -325,3 +325,115 @@ stable), `notebook_02` (crop 996×480 → 1086×497, same tone — slight relaxa
 `receipt_01` (top-left quarter quad, 24.9 % — one earlier overlay read mis-saw it as
 full-frame because of green background objects; the stored quad is verified),
 `passport_04` (loose right edge, GT IoU 0.68, usable).
+
+<!-- review-2026-10-03e -->
+## Detector v18 (texture-rescue candidates + candidate-pool dumps) — offline + on-device (2026-10-03, night)
+
+**Diagnosis.** The remaining fails starve the *candidate* pipeline, not the scorer: the
+crumpled `receipt_01` dagticket sits on a grey-green table at ≈ zero photometric contrast
+(mean |DoG| 1.7 — Canny/CLAHE pass finds nothing py-side), and `notebook_07`'s pages are
+smoother (local std < 3) than every object around them. The py pool for `receipt_01` held
+a single candidate (the desk-merged paper-mask quad); `notebook_07`'s held two (the
+pencil-case sliver + the merged mask).
+
+**Detector change (v17 → v18).** Texture rescue: when the pool winner is degenerate —
+af < 0.10, or a merged near-full-frame quad with no boundary evidence (af > 0.90 and
+sup < 0.20) — candidates are added from a local-standard-deviation texture mask
+(std = √(blur(g²) − blur(g)²), 17 px window, std ≥ 3) **ANDed with the papery HSV test**
+(drops fabric/foliage/dark keyboards), close 25×25 to bridge text/line gaps, components
+≥ 2 % of frame with fill ≥ 0.5 (ragged multi-object merges are not documents), scored
+through the normal pool. Texture-origin winners skip refine+extend (the mask outline is
+already the full blob; Canny edges are unreliable here; side extension grows into the
+smooth-but-papery table) and are exempt from the big-weak-sides frame promotion (its
+premise — the doc fills the frame — is unverifiable on edge-free scenes, and promoting
+to frame is the bug being fixed). Also adds `ScanPipeline.quadDebugSink` and per-image
+candidate-pool dumps in the eval benchmark (`pools/*.pool.txt`), mirroring the Python
+twin's `debug_pool`.
+
+**Python twin** (82-photo corpus, `/tmp/openscan-pyquad-j79/improved_v18.py`): 82/82
+detected, GT IoU mean 0.8004 byte-identical to v17, exactly 2 quads changed:
+`receipt_01` full-frame fallback → the ticket (crop fully readable), and `contract_04`
+(no in-frame document, GT absent) junk window-pane read → larger junk window read.
+Everything else byte-unchanged.
+
+**On-device A/B** (run-v18 vs run-v17, emulator-5556, 95-photo index):
+
+| Metric | run-v17 | **run-v18** |
+| --- | --- | --- |
+| Detection (raw) | 92 / 95 | 92 / 95 (`form_07` abstention kept) |
+| GT IoU (26 valid) | mean 0.8004 · median 0.9575 · 17/26 ≥ 0.9 | **byte-identical** |
+| PDF export | 65/65 | 65/65 |
+| Watermark check (`pdftotext`) | 65/65 empty | **65/65 empty** |
+
+Only quad change on device: `contract_04` (junk → junk). A debug-sink build was verified
+result-identical. On device the texture path has no scene to rescue yet (see below) — it
+is the safety net for py-side starved scenes and matches the twin 1:1.
+
+**Device residual, diagnosed but unfixed:** on device `receipt_01` diverges from py —
+the CLAHE pass *does* find the ticket (pool dump: score 1.10, sup 0.71, fill 0.96,
+bbox 29–76 % × 13–90 %), and then `extend_sides` grows it over the papery-looking table
+to near-frame (the papery HSV test cannot tell "more paper" from grey-green table). A
+boundary-line extension guard (side already on an edge line + edge-free space beyond →
+don't grow) was tried and **rejected**: internal whitespace bands defeat beyond-density
+probes at every scale (`form_01` lost its header), and the corner-fallback variants
+needed for mixed blocked/extended sides regress `passport_07` (−0.196) / `id_card_04`
+(−0.080). `extend_sides` is left untouched; the pool dumps + `quadDebugSink` are the
+tooling for a future attack. `notebook_07`: page texture (std ≈ 6 under hand occlusion)
+is inseparable from desk/laptop by this mask (threshold 2.0 would mask `receipt_01`'s
+table, p90 = 1.9) — pencil-case quad stays, py and device. `passport_04` (0.68) unchanged.
+
+<!-- review-2026-10-03e -->
+## Detector v18 (texture-rescue candidates + candidate-pool dumps) — offline + on-device (2026-10-03, night)
+
+**Diagnosis.** The remaining fails starve the *candidate* pipeline, not the scorer: the
+crumpled `receipt_01` dagticket sits on a grey-green table at ≈ zero photometric contrast
+(mean |DoG| 1.7 — Canny/CLAHE pass finds nothing py-side), and `notebook_07`'s pages are
+smoother (local std < 3) than every object around them. The py pool for `receipt_01` held
+a single candidate (the desk-merged paper-mask quad); `notebook_07`'s held two (the
+pencil-case sliver + the merged mask).
+
+**Detector change (v17 → v18).** Texture rescue: when the pool winner is degenerate —
+af < 0.10, or a merged near-full-frame quad with no boundary evidence (af > 0.90 and
+sup < 0.20) — candidates are added from a local-standard-deviation texture mask
+(std = √(blur(g²) − blur(g)²), 17 px window, std ≥ 3) **ANDed with the papery HSV test**
+(drops fabric/foliage/dark keyboards), close 25×25 to bridge text/line gaps, components
+≥ 2 % of frame with fill ≥ 0.5 (ragged multi-object merges are not documents), scored
+through the normal pool. Texture-origin winners skip refine+extend (the mask outline is
+already the full blob; Canny edges are unreliable here; side extension grows into the
+smooth-but-papery table) and are exempt from the big-weak-sides frame promotion (its
+premise — the doc fills the frame — is unverifiable on edge-free scenes, and promoting
+to frame is the bug being fixed). Also adds `ScanPipeline.quadDebugSink` and per-image
+candidate-pool dumps in the eval benchmark (`pools/*.pool.txt`), mirroring the Python
+twin's `debug_pool`.
+
+**Python twin** (82-photo corpus, `/tmp/openscan-pyquad-j79/improved_v18.py`): 82/82
+detected, GT IoU mean 0.8004 byte-identical to v17, exactly 2 quads changed:
+`receipt_01` full-frame fallback → the ticket (crop fully readable), and `contract_04`
+(no in-frame document, GT absent) junk window-pane read → larger junk window read.
+Everything else byte-unchanged.
+
+**On-device A/B** (run-v18 vs run-v17, emulator-5556, 95-photo index):
+
+| Metric | run-v17 | **run-v18** |
+| --- | --- | --- |
+| Detection (raw) | 92 / 95 | 92 / 95 (`form_07` abstention kept) |
+| GT IoU (26 valid) | mean 0.8004 · median 0.9575 · 17/26 ≥ 0.9 | **byte-identical** |
+| PDF export | 65/65 | 65/65 |
+| Watermark check (`pdftotext`) | 65/65 empty | **65/65 empty** |
+
+Only quad change on device: `contract_04` (junk → junk). A debug-sink build was verified
+result-identical. On device the texture path has no scene to rescue yet (see below) — it
+is the safety net for py-side starved scenes and matches the twin 1:1.
+
+**Device residual, diagnosed but unfixed:** on device `receipt_01` diverges from py —
+the CLAHE pass *does* find the ticket (pool dump: score 1.10, sup 0.71, fill 0.96,
+bbox 29–76 % × 13–90 %), and then `extend_sides` grows it over the papery-looking table
+to near-frame (the papery HSV test cannot tell "more paper" from grey-green table). A
+boundary-line extension guard (side already on an edge line + edge-free space beyond →
+don't grow) was tried and **rejected**: internal whitespace bands defeat beyond-density
+probes at every scale (`form_01` lost its header), and the corner-fallback variants
+needed for mixed blocked/extended sides regress `passport_07` (−0.196) / `id_card_04`
+(−0.080). `extend_sides` is left untouched; the pool dumps + `quadDebugSink` are the
+tooling for a future attack. `notebook_07`: page texture (std ≈ 6 under hand occlusion)
+is inseparable from desk/laptop by this mask (threshold 2.0 would mask `receipt_01`'s
+table, p90 = 1.9) — pencil-case quad stays, py and device. `passport_04` (0.68) unchanged.

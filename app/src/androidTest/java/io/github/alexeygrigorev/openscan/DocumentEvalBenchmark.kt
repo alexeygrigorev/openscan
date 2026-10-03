@@ -47,6 +47,7 @@ class DocumentEvalBenchmark {
         val cropsDir = File(outDir, "crops").apply { mkdirs() }
         val overlaysDir = File(outDir, "overlays").apply { mkdirs() }
         val pdfsDir = File(outDir, "pdfs").apply { mkdirs() }
+        val poolsDir = File(outDir, "pools").apply { mkdirs() }
 
         val results = JSONArray()
         val pagesByDoc = LinkedHashMap<String, MutableList<File>>()
@@ -58,6 +59,9 @@ class DocumentEvalBenchmark {
             val name = entry.getString("file")
             val doc = entry.optString("doc", "single")
             val record = JSONObject().put("file", name).put("doc", doc)
+            ScanPipeline.quadDebugSink = { pool ->
+                File(poolsDir, "$name.pool.txt").writeText(pool.joinToString("\n") { it.toString() })
+            }
             try {
                 val src = decode(File("/data/local/tmp/openscan-eval/images", name), 2200)
                     ?: error("undecodable image")
@@ -104,6 +108,7 @@ class DocumentEvalBenchmark {
                 .put("totalMs", System.currentTimeMillis() - tAll)
                 .toString()
         )
+        ScanPipeline.quadDebugSink = null
     }
 
     private fun decode(source: File, maxDim: Int): Bitmap? {

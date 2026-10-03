@@ -29,6 +29,14 @@ object ScanPipeline {
     /** One scan: the detected document quad and the warped, cropped page bitmap. */
     data class ScanResult(val quad: FloatArray, val cropped: Bitmap)
 
+    /**
+     * Optional debug sink: when set, [QuadDetector.detect] reports its scored
+     * candidate pool per photo (same fields as the Python twin's debug_pool),
+     * plus the rescue decision and final quad. Test/eval tooling only —
+     * null in production.
+     */
+    var quadDebugSink: ((List<Map<String, Any?>>) -> Unit)? = null
+
     /** Returns TL, TR, BR, BL corner coordinates in source-bitmap space, or null. */
     fun detectQuad(src: Bitmap): FloatArray? = QuadDetector.detect(src)
 
@@ -66,6 +74,15 @@ private object QuadDetector {
     // containment even when its edge contour is sparse
     private const val SLIVER_AF = 0.10    // winners smaller than this on papery borders
     // are promoted to the frame
+    private const val RESCUE_AF = 0.10    // winners smaller than this (or merged
+    // near-full-frame quads with no boundary evidence) trigger the texture rescue
+    private const val TEXTURE_WIN = 17      // local-std window (px)
+    private const val TEXTURE_STD_THRESH = 3.0 // gray std-dev over the window that
+    // counts as textured (ruled lines ≈ 2–6, text/crumple folds ≫; smooth desk < 1)
+    private const val TEXTURE_MIN_FRAC = 0.02 // texture components below this area
+    // fraction are ignored
+    private const val TEXTURE_MAX_COMPS = 3
+    private const val TEXTURE_MIN_FILL = 0.5 // ragged multi-object merges are not documents
 
     /** One scored proposal: quad + the evidence it was scored against. */
     private class Cand(
@@ -75,11 +92,13 @@ private object QuadDetector {
         val af: Double,
         val sup: Double,
         val edgesIdx: Int,
+        val texture: Boolean = false,
     )
 
     /** Returns TL, TR, BR, BL corner coordinates in source-bitmap space, or null. */
     fun detect(src: Bitmap): FloatArray? {
         if (!OpenCVLoader.initLocal()) error("OpenCV native library failed to load")
+        val dbg = if (ScanPipeline.quadDebugSink != null) ArrayList<Map<String, Any?>>() else null
         val rgba = Mat()
         org.opencv.android.Utils.bitmapToMat(src, rgba)
         val scale = WORK / maxOf(src.width, src.height)
@@ -141,7 +160,7 @@ private object QuadDetector {
                 if (qa <= 0.0) continue
                 val sup = edgeSupport(q, dil)
                 if (sup < 0.30) continue
-                add(cands, q, min(1.0, ca / qa), sup, idx, frameQ, frameArea, scenePap, hsv, lastResort = false)
+                add(cands, q, min(1.0, ca / qa), sup, idx, frameQ, frameArea, scenePap, hsv, lastResort = false, dbg = dbg, src = "pass$idx")
             }
         }
         grayC.release()
@@ -149,7 +168,7 @@ private object QuadDetector {
         // Bright-paper mask: support is inherently weak (paper edges are exactly
         // the low-contrast case that motivated this path), so no support gate.
         paperMaskQuad(hsv, sw, sh)?.let { pm ->
-            add(cands, pm, 1.0, edgeSupport(pm, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = false)
+            add(cands, pm, 1.0, edgeSupport(pm, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = false, dbg = dbg, src = "papermask")
         }
 
         // Last resort: minAreaRect of the dominant contour — only when the
@@ -170,7 +189,7 @@ private object QuadDetector {
                     // Loose fill is fine — side extension grows the rect back
                     // over the paper, and the frame-promotion above handles
                     // sliver rects.
-                    add(cands, q, fill, edgeSupport(q, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = true)
+                    add(cands, q, fill, edgeSupport(q, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = true, dbg = dbg, src = "lastresort")
                 }
             }
         }
@@ -179,7 +198,7 @@ private object QuadDetector {
         // look like paper (document fills / overflows the frame).
         val framePaperish = frameIsPaperish(hsv, sw, sh)
         if (cands.isEmpty() && framePaperish) {
-            add(cands, frameQ, 1.0, edgeSupport(frameQ, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = true)
+            add(cands, frameQ, 1.0, edgeSupport(frameQ, dilEdges[0]!!), 0, frameQ, frameArea, scenePap, hsv, lastResort = true, dbg = dbg, src = "frame")
         }
 
         if (cands.isEmpty()) {
@@ -190,6 +209,38 @@ private object QuadDetector {
         }
         cands.sortByDescending { it.score }
         var best = cands[0]
+        // Texture rescue: a sliver winner or a merged near-full-frame quad with no
+        // boundary evidence means the scene starved the edge pipeline (document on
+        // a smooth uniform surface — white notebook on white desk, crumpled receipt
+        // on a plain table). Such documents are the only papery-textured regions in
+        // the frame even when their boundaries carry almost no contrast, so add
+        // local-std texture-mask candidates and re-pick.
+        if (best.af < RESCUE_AF || (best.af > 0.90 && best.sup < 0.20)) {
+            dbg?.add(
+                mapOf(
+                    "rescue" to "fired",
+                    "winner_af" to Math.round(best.af * 1000.0) / 1000.0,
+                    "winner_sup" to Math.round(best.sup * 100.0) / 100.0,
+                )
+            )
+            for ((q, fill) in textureMaskQuads(small, hsv, frameArea)) {
+                add(
+                    cands, q, fill, edgeSupport(q, dilEdges[0]!!), 0,
+                    frameQ, frameArea, scenePap, hsv, lastResort = false, texture = true,
+                    dbg = dbg, src = "texture",
+                )
+            }
+            cands.sortByDescending { it.score }
+            best = cands[0]
+        } else {
+            dbg?.add(
+                mapOf(
+                    "rescue" to "not fired",
+                    "winner_af" to Math.round(best.af * 1000.0) / 1000.0,
+                    "winner_sup" to Math.round(best.sup * 100.0) / 100.0,
+                )
+            )
+        }
         val bestScore0 = best.score // the sliver test keeps using the original winner's score
         // Inner switch: a well-supported candidate nested inside the winner
         // that is much smaller and brighter is the document; the winner merely
@@ -228,19 +279,37 @@ private object QuadDetector {
         // A BIG winner with two or more sides cutting through open papery space
         // (no edge line along them) is a partial read of a frame-filling document
         // — e.g. a band across a full-bleed print or a ruler quad on a full page.
-        if (!best.q.contentEquals(frameQ) && best.af > 0.30 && framePaperish) {
+        // Texture-rescue winners are exempt: they only exist on scenes with no
+        // usable edge evidence at all, where "the doc really fills the frame" is
+        // unverifiable — and promoting to frame is the bug this path fixes.
+        if (!best.q.contentEquals(frameQ) && best.af > 0.30 && !best.texture && framePaperish) {
             val sups = sideSupports(best.q, rawEdges[best.edgesIdx]!!)
             if (sups.count { it < 0.25 } >= 2) {
                 best = Cand(frameQ, best.score, best.pap, 1.0, edgeSupport(frameQ, dilEdges[0]!!), 0)
             }
         }
         var quad = best.q
-        quad = refineQuad(quad, rawEdges[best.edgesIdx]!!)
-        quad = extendSides(quad, hsv, rawEdges[best.edgesIdx]!!, sw, sh)
+        if (!best.texture) {
+            quad = refineQuad(quad, rawEdges[best.edgesIdx]!!)
+            quad = extendSides(quad, hsv, rawEdges[best.edgesIdx]!!, sw, sh)
+        }
+        // (texture-rescue winners skip refinement and side extension: the mask
+        // outline is already the full blob, Canny edges are unreliable on these
+        // scenes, and extension grows into the smooth-but-papery table — the
+        // exact failure this path rescues.)
         gray.release()
         hsv.release()
         rawEdges.forEach { it?.release() }
         dilEdges.forEach { it?.release() }
+        if (dbg != null) {
+            dbg.add(
+                mapOf(
+                    "final" to quad.map { Math.round(it * 10.0) / 10.0 },
+                    "texture_winner" to best.texture,
+                )
+            )
+            ScanPipeline.quadDebugSink?.invoke(dbg)
+        }
         val pts = Array(4) { i -> (quad[2 * i] / scale) to (quad[2 * i + 1] / scale) }
         return FloatArray(8) { d -> if (d % 2 == 0) pts[d / 2].first.toFloat() else pts[d / 2].second.toFloat() }
     }
@@ -257,19 +326,52 @@ private object QuadDetector {
         scenePap: Double,
         hsv: Mat,
         lastResort: Boolean,
+        texture: Boolean = false,
+        dbg: MutableList<Map<String, Any?>>? = null,
+        src: String = "",
     ) {
         val pap = paperishScore(q, hsv)
         var floor = if (sup >= 0.55) PAPER_STRONG else PAPER_WEAK
         if (sup >= 0.55 && scenePap < PAPERLESS_SCENE) floor = max(floor, PAPERLESS_FLOOR)
-        if (pap < floor) return
+        if (pap < floor) {
+            dbg?.add(mapOf("rejected" to "pap $pap < floor $floor", "src" to src))
+            return
+        }
         val af = polyArea(q) / frameArea
-        if (!lastResort && af > 0.8 && pap < 0.5 && fill >= 0.99) return // mask merged the desk
+        if (!lastResort && af > 0.8 && pap < 0.5 && fill >= 0.99) { // mask merged the desk
+            dbg?.add(mapOf("rejected" to "desk merge", "src" to src))
+            return
+        }
         var fillEff = fill
         if (pap >= PAP_FILL_FLOOR && sup >= 0.35) fillEff = max(fillEff, pap)
         var damp = if (q contentEquals frameQ) FRAME_AF_DAMP else 1.0
         if (af >= BIG_AF && !(sup >= 0.50 && pap >= 0.50)) damp *= BIG_AF_DAMP
         val score = af * damp * Math.pow(fillEff, 4.0) * (SUPPORT_TAU + sup) * (1.0 + 4.0 * pap)
-        cands.add(Cand(q, score, pap, af, sup, edgesIdx))
+        cands.add(Cand(q, score, pap, af, sup, edgesIdx, texture))
+        if (dbg != null) {
+            var minX = q[0]; var maxX = q[0]; var minY = q[1]; var maxY = q[1]
+            for (i in 1..3) {
+                if (q[2 * i] < minX) minX = q[2 * i]
+                if (q[2 * i] > maxX) maxX = q[2 * i]
+                if (q[2 * i + 1] < minY) minY = q[2 * i + 1]
+                if (q[2 * i + 1] > maxY) maxY = q[2 * i + 1]
+            }
+            dbg.add(
+                mapOf(
+                    "score" to Math.round(score * 10000.0) / 10000.0,
+                    "af" to Math.round(af * 1000.0) / 1000.0,
+                    "sup" to Math.round(sup * 100.0) / 100.0,
+                    "pap" to Math.round(pap * 100.0) / 100.0,
+                    "fill" to Math.round(fill * 100.0) / 100.0,
+                    "bbox_pct" to listOf(
+                        Math.round(minX / hsv.cols() * 100), Math.round(minY / hsv.rows() * 100),
+                        Math.round(maxX / hsv.cols() * 100), Math.round(maxY / hsv.rows() * 100),
+                    ),
+                    "texture" to texture,
+                    "src" to src,
+                )
+            )
+        }
     }
 
     /** (quad, contour area) for every convex-quad contour plus minAreaRect boxes of big contours. */
@@ -397,6 +499,112 @@ private object QuadDetector {
         val boxPts = Array(4) { org.opencv.core.Point() }
         rot.points(boxPts)
         return orderCorners(boxPts.map { it.x to it.y })
+    }
+
+    /**
+     * Local-standard-deviation texture mask ANDed with the papery HSV test ->
+     * solid textured-component quads. Documents sitting on smooth surfaces
+     * (white notebook on white desk, crumpled receipt on a plain table) are the
+     * only papery-textured regions in the frame even when their boundaries carry
+     * almost no photometric contrast. std = sqrt(blur(g²) − blur(g)²) over a
+     * window; threshold at TEXTURE_STD_THRESH, drop fabric/foliage/dark keys via
+     * the papery test, close to bridge text/line gaps, then convex-quad (or
+     * minAreaRect) each big component. Mirrors improved_v18.texture_mask_quads 1:1.
+     */
+    private fun textureMaskQuads(small: Mat, hsv: Mat, frameArea: Double): List<Pair<DoubleArray, Double>> {
+        val gray = Mat()
+        Imgproc.cvtColor(small, gray, Imgproc.COLOR_RGBA2GRAY)
+        val g = Mat()
+        gray.convertTo(g, org.opencv.core.CvType.CV_32F)
+        gray.release()
+        val mean = Mat()
+        Imgproc.GaussianBlur(g, mean, Size(TEXTURE_WIN.toDouble(), TEXTURE_WIN.toDouble()), 0.0)
+        val sq = Mat()
+        Core.multiply(g, g, sq) // blur(g²) next; g no longer needed
+        Imgproc.GaussianBlur(sq, sq, Size(TEXTURE_WIN.toDouble(), TEXTURE_WIN.toDouble()), 0.0)
+        g.release()
+        val meanSq = Mat()
+        Core.multiply(mean, mean, meanSq)
+        mean.release()
+        Core.subtract(sq, meanSq, sq)
+        meanSq.release()
+        Core.max(sq, Scalar.all(0.0), sq)
+        Core.sqrt(sq, sq)
+        val texMask = Mat()
+        Core.compare(sq, Scalar(TEXTURE_STD_THRESH), texMask, Core.CMP_GE)
+        sq.release()
+
+        // Papery HSV test, same thresholds as extendSides: drops fabric, foliage,
+        // dark keyboard texture — keeps paper-ish texture only.
+        val vMat = Mat()
+        val sMat = Mat()
+        Core.extractChannel(hsv, vMat, 2)
+        Core.extractChannel(hsv, sMat, 1)
+        val vBlur = Mat()
+        val sBlur = Mat()
+        Imgproc.blur(vMat, vBlur, Size(9.0, 9.0))
+        Imgproc.blur(sMat, sBlur, Size(9.0, 9.0))
+        vMat.release(); sMat.release()
+        val papery = Mat()
+        val tmp = Mat()
+        Core.compare(vBlur, Scalar(120.0), papery, Core.CMP_GT)
+        Core.compare(sBlur, Scalar(80.0), tmp, Core.CMP_LT)
+        Core.bitwise_and(papery, tmp, papery)
+        Core.compare(vBlur, Scalar(85.0), tmp, Core.CMP_GT)
+        val tmp2 = Mat()
+        Core.compare(sBlur, Scalar(60.0), tmp2, Core.CMP_LT)
+        Core.bitwise_and(tmp, tmp2, tmp)
+        Core.bitwise_or(papery, tmp, papery)
+        vBlur.release(); sBlur.release(); tmp.release(); tmp2.release()
+        Core.bitwise_and(texMask, papery, texMask)
+        papery.release()
+
+        val k25 = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(25.0, 25.0))
+        val k9 = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(9.0, 9.0))
+        Imgproc.morphologyEx(texMask, texMask, Imgproc.MORPH_CLOSE, k25)
+        Imgproc.morphologyEx(texMask, texMask, Imgproc.MORPH_OPEN, k9)
+        val contours = ArrayList<MatOfPoint>()
+        Imgproc.findContours(texMask, contours, Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
+        texMask.release()
+
+        val out = ArrayList<Pair<DoubleArray, Double>>()
+        val sorted = contours.sortedByDescending { Imgproc.contourArea(it) }
+        for (c in sorted.take(TEXTURE_MAX_COMPS)) {
+            val ca = Imgproc.contourArea(c)
+            if (ca < TEXTURE_MIN_FRAC * frameArea) break
+            val hullIdx = org.opencv.core.MatOfInt()
+            Imgproc.convexHull(c, hullIdx)
+            val cPts = c.toArray()
+            val hullPts = hullIdx.toArray().map { cPts[it.toInt()] }
+            hullIdx.release()
+            val hull2f = MatOfPoint2f(*hullPts.toTypedArray())
+            var approx = hull2f
+            for (eps in intArrayOf(2, 3, 5, 8)) {
+                val a = MatOfPoint2f()
+                Imgproc.approxPolyDP(hull2f, a, eps * 0.01 * Imgproc.arcLength(hull2f, true), true)
+                approx = a
+                if (a.total() <= 6L) break
+            }
+            var q: DoubleArray? = null
+            if (approx.total() == 4L) {
+                q = orderCorners(approx.toArray().map { it.x to it.y })
+            } else {
+                val rot = Imgproc.minAreaRect(hull2f)
+                if (rot.size.width >= 1 && rot.size.height >= 1) {
+                    val boxPts = Array(4) { org.opencv.core.Point() }
+                    rot.points(boxPts)
+                    q = orderCorners(boxPts.map { it.x to it.y })
+                }
+            }
+            if (q != null) {
+                val qa = polyArea(q)
+                if (qa > 0.0) {
+                    val fill = min(1.0, ca / qa)
+                    if (fill >= TEXTURE_MIN_FILL) out.add(q to fill)
+                }
+            }
+        }
+        return out
     }
 
     /** Borders of the photo are bright and unsaturated -> the document fills the frame. */
