@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A scanned page: a white document sheet with a fold, some text lines and a
-     bright scan line sweeping across it. -->
+<!-- A scanned page: a white document sheet with a fold, abstract text lines,
+     scanner corner brackets and a bright scan line sweeping across it.
+     Matches docs/assets/generated/icon-source.png; content stays inside the
+     66dp adaptive-icon safe zone. Reused as the themed (monochrome) icon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -15,19 +17,52 @@
     <path
         android:fillColor="#C9EAE6"
         android:pathData="M60,30 l11,11 h-9 a2,2 0 0 1 -2,-2 z" />
-    <!-- text lines above the scan line -->
+
+    <!-- abstract text lines -->
     <path
-        android:fillColor="#AFC5C3"
-        android:pathData="M46,47 h19 v3.5 h-19 z" />
+        android:fillColor="#CBD5E1"
+        android:pathData="M46,39.5 h12 a1.75,1.75 0 0 1 0,3.5 h-12 a1.75,1.75 0 0 1 0,-3.5 z" />
     <path
-        android:fillColor="#AFC5C3"
-        android:pathData="M46,54 h19 v3.5 h-19 z" />
+        android:fillColor="#CBD5E1"
+        android:pathData="M46,47.5 h21 a1.75,1.75 0 0 1 0,3.5 h-21 a1.75,1.75 0 0 1 0,-3.5 z" />
+    <path
+        android:fillColor="#CBD5E1"
+        android:pathData="M46,60.5 h21 a1.75,1.75 0 0 1 0,3.5 h-21 a1.75,1.75 0 0 1 0,-3.5 z" />
+    <path
+        android:fillColor="#CBD5E1"
+        android:pathData="M46,68.5 h15 a1.75,1.75 0 0 1 0,3.5 h-15 a1.75,1.75 0 0 1 0,-3.5 z" />
+
+    <!-- scanner corner brackets -->
+    <path
+        android:pathData="M23,35 V27 a4,4 0 0 1 4,-4 h8"
+        android:strokeColor="#34D399"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M73,23 h8 a4,4 0 0 1 4,4 v8"
+        android:strokeColor="#34D399"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M23,73 v8 a4,4 0 0 0 4,4 h8"
+        android:strokeColor="#34D399"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M85,73 v8 a4,4 0 0 1 -4,4 h-8"
+        android:strokeColor="#34D399"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
     <!-- scan line -->
     <path
-        android:fillColor="#2DD4BF"
-        android:pathData="M34,61.5 h40 v4 h-40 z" />
-    <!-- text lines below the scan line -->
-    <path
-        android:fillColor="#AFC5C3"
-        android:pathData="M46,69 h13 v3.5 h-13 z" />
+        android:pathData="M25,54 h58"
+        android:strokeColor="#5EEAD4"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
 </vector>
