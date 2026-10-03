@@ -11,12 +11,13 @@ shows "Something went wrong") even though networking works — so **no emulator
 run can measure the production detector**. The app itself degrades gracefully
 (photo-picker import), which is itself tested in `PhotoPickerImportUiTest`.
 
-This evaluation therefore measures the **pipeline geometry** — decode → detect
-quad → perspective crop → `PdfExporter.exportPdf` — with a **test-only OpenCV
-detector** (`DocumentEvalBenchmark.kt`, `androidTest` only; the production APK
-is untouched). It proves the pipeline is correct and watermark-free at scale;
-the production detector's quality is Google's model and should be spot-checked
-once on a real phone with Play services.
+This evaluation measures the **pipeline geometry** — decode → detect
+quad → perspective crop → `PdfExporter.exportPdf` — with an OpenCV
+detector. When the v3 benchmark ran, that detector was `androidTest`-only;
+it has since been promoted into the app as [`ScanPipeline.kt`](../app/src/main/java/io/github/alexeygrigorev/openscan/scan/ScanPipeline.kt)
+and upgraded to **detector v8** — see the [v8 section](#detector-v8-ported-into-scanpipeline--on-device-re-run-2026-10-03-evening)
+below (the CameraX capture flow itself still prefers ML Kit on Play-services
+devices, which should be spot-checked once on a real phone).
 
 ## Dataset
 
@@ -155,8 +156,9 @@ are close-ups whose boundary lies outside the frame). Unreliable on **small plas
 cluttered scenes** (ID/passport/licence: 10/30 tight) — failure modes: full-frame fallback,
 sub-object lock-in (logo, wax seal, uniform-invoice stamp, the portrait photo inside an ID, a
 phone), degenerate off-frame quads. Notebooks (flat-lay photos where the notebook is a
-fraction of the frame) are weakest: 0 tight, 4 usable. This is the known ceiling of the
-test-only OpenCV recipe, not of the app: production uses ML Kit's trained detector.
+fraction of the frame) are weakest: 0 tight, 4 usable. This was the known ceiling of the v3 OpenCV recipe — superseded by
+detector v8 (section below), which ships in `ScanPipeline`. On Play-services
+devices the capture flow additionally has ML Kit's trained detector.
 
 **Ground-truth validity caveat (manifest-verified):** 7 of the 28 MIDV GT quads are fully
 or partly off-canvas (corners outside the 1080×1920 frame), so their IoU ≈ 0 measures GT
