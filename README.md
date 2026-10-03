@@ -3,17 +3,19 @@
 **A free, open-source document scanner for Android. No watermark. No ads. No account. No tracking.**
 
 OpenScan does what CamScanner's paid tier does — clean, straight, readable PDFs from your
-camera — and gives it away for free. Every page you scan stays on your phone.
+camera — and gives it away for free. Every page you scan stays on your phone unless you
+explicitly opt in to sharing scans for app improvement (Settings → off by default).
 
 ## Why OpenScan?
 
 - **No watermarks, ever.** CamScanner stamps its logo on every page of the free tier and
   charges ~$50/year to remove it. OpenScan's output is always clean.
-- **Private by construction.** Scanning happens inside Google Play services and OCR runs
-  fully on-device. The built APK has **no INTERNET and no CAMERA**: Google's libraries
-  merge network permissions into every app that uses them, and OpenScan strips them from
-  the merged manifest — the app cannot reach the network or the camera, so your documents
-  physically cannot leave your phone. (CamScanner shipped malware on Google Play in 2019
+- **Private by default.** Scanning happens inside Google Play services and OCR runs
+  fully on-device. The built APK has **no CAMERA permission**, and the only network
+  feature is an explicitly opt-in toggle ("send pictures to our servers so we can use
+  them to improve our application", off by default): with the toggle off nothing is ever
+  transmitted, and uploads are fire-and-forget with no retry queue, so turning it off
+  stops all transfers immediately. (CamScanner shipped malware on Google Play in 2019
   and was banned in India in 2020.)
 - **Microsoft Lens was retired in March 2026** — if you lost your scanner app in that
   cleanup, OpenScan is its spiritual successor, without the account.
@@ -29,7 +31,10 @@ camera — and gives it away for free. Every page you scan stays on your phone.
 - [x] Page rotation, per-page deletion and page reordering (Reorder mode)
 - [x] Share as PDF (multi-page) — never watermarked
 - [x] Share as JPEG images — never watermarked (zip of pages for multi-page documents)
-- [x] Fully offline; works without any network connection
+- [x] Fully offline when scan sharing is off (the default); the toggle is the only
+      thing that ever uses the network
+- [x] Opt-in scan sharing for improving document detection — off by default, no
+      account, no identifiers, uploads auto-deleted after 90 days
 - [x] On-device OCR with copyable text (ML Kit text recognition — bundled)
 - [ ] Merge documents, password-protected PDF export
 - [ ] E-signature placement
@@ -63,17 +68,20 @@ release process (tag → one workflow → GitHub Release with signed artifacts).
 
 ## Privacy
 
-OpenScan collects nothing. There is no analytics, no crash reporting, and no account, and
-the built APK requests no network access and no camera: the only `uses-permission` left
-in the merged manifest is AndroidX's package-scoped receiver guard, which grants access
-to nothing. Verify it yourself:
+OpenScan collects nothing by default: no analytics, no crash reporting, no account.
+The app has no camera permission, and the network is used for exactly one thing —
+the opt-in scan-sharing toggle in Settings, which is **off by default**: while it is
+off, no scan content is ever transmitted, and nothing is queued for later. Verify the
+merged manifest yourself:
 
 ```bash
 aapt2 dump badging app-release.apk | grep uses-permission
+# uses-permission: name='android.permission.INTERNET'
 # uses-permission: name='io.github.alexeygrigorev.openscan.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
 ```
 
-Details in [docs/PRIVACY.md](docs/PRIVACY.md).
+Details — including exactly what an opted-in upload contains and how long it is kept —
+in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ## Contributing
 

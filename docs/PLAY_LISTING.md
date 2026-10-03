@@ -64,9 +64,9 @@ on the optional feedback upload in Settings. Free and open source.
 • Share anywhere via the Android share sheet
 
 ◼ WHY IT'S DIFFERENT
-• **Your documents stay yours.** OpenScan cannot reach the network or your
-  camera on its own — no internet permission, no camera permission. Everything
-  is processed on your phone.
+• **Your documents stay yours.** OpenScan has no camera permission, and the
+  network is used for exactly one thing: an optional scan-sharing toggle that
+  is off by default. Everything else is processed on your phone.
 • **The app the freemium scanners pretend to be.** Clean exports with no
   watermark, full OCR without a paywall.
 • **A new home for Microsoft Lens users.** Lens is retired; OpenScan keeps the
@@ -75,14 +75,15 @@ on the optional feedback upload in Settings. Free and open source.
   github.com/alexeygrigorev/openscan
 
 ◼ PERMISSIONS
-No camera, no internet, no storage. The app cannot reach the network or the
-camera on its own: capture runs inside Google Play services and sharing uses
-the system share sheet.
+No camera, no storage, no location. Capture runs inside Google Play services
+and sharing uses the system share sheet. `INTERNET` exists solely for the
+optional, off-by-default feedback upload (see the privacy policy) — with the
+toggle off, the app works fully offline.
 
 ◼ GOOD TO KNOW
 • Requires Google Play services for the on-device scanner module (an F-Droid
   flavor with an independent pipeline is on the roadmap)
-• Works fully offline
+• Works fully offline (the optional feedback upload is off by default)
 
 Scan anything. Own everything.
 
@@ -101,10 +102,12 @@ Scan anything. Own everything.
 
 ## Required for submission
 
-- **Hosted public privacy-policy URL** — ✅ done, live at
+- **Hosted public privacy-policy URL** — ⚠️ live at
   <https://alexeygrigorev.com/openscan-privacy.html> (source: `openscan-privacy.md`
   in the alexeygrigorev.github.io repo; fallback: the rendered GitHub URL
-  github.com/alexeygrigorev/openscan/blob/main/docs/PRIVACY.md)
+  github.com/alexeygrigorev/openscan/blob/main/docs/PRIVACY.md) — **must be
+  refreshed from the updated `docs/PRIVACY.md` before any build with the
+  feedback toggle rolls out**, so the hosted copy matches the shipped app
 - **Contact email** for the store listing — use `alexey@datatalks.club`
 - **Store category** — Utilities or Productivity (pick one)
 - **Produced asset files** — ✅ generated in `store/`:
@@ -116,7 +119,10 @@ Scan anything. Own everything.
 
 ## Data safety form
 
-Per `PRIVACY.md`: no data collected, no data shared, security practices n/a.
+Per `PRIVACY.md`: photos (scans) — collected only after the user enables the
+optional feedback switch; purpose: app improvement; shared with third
+parties: no; encrypted in transit: yes; deletion: uploaded pages auto-delete
+within 30 days. All other data types: not collected.
 
 ## Content rating questionnaire
 
