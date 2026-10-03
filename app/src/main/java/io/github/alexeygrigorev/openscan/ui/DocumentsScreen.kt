@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Scanner
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -86,6 +87,7 @@ fun DocumentsScreen(
     viewModel: DocumentsViewModel,
     onOpenDocument: (Long) -> Unit,
     onScan: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val documents by viewModel.documents.collectAsState()
 
@@ -109,6 +111,9 @@ fun DocumentsScreen(
                         )
                     }) {
                         Icon(Icons.Filled.AddPhotoAlternate, contentDescription = "Import images")
+                    }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
                     }
                 },
             )

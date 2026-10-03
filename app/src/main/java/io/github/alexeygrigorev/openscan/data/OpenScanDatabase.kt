@@ -64,5 +64,14 @@ class AppContainer(context: Context) {
 
     val files = DocumentFiles(appContext)
     val importer = io.github.alexeygrigorev.openscan.scan.PageImporter(appContext)
-    val repository = DocumentsRepository(database.openscanDao(), files, importer)
+    val settings: SettingsRepository =
+        DataStoreSettingsRepository(DataStoreSettingsRepository.createDefaultDataStore(appContext))
+    val uploader = io.github.alexeygrigorev.openscan.scan.FeedbackUploader(settings, appVersionName())
+    val repository = DocumentsRepository(database.openscanDao(), files, importer, uploader)
+
+    private fun appVersionName(): String = try {
+        appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName ?: ""
+    } catch (_: Exception) {
+        ""
+    }
 }

@@ -20,6 +20,8 @@ import io.github.alexeygrigorev.openscan.ui.DocumentsScreen
 import io.github.alexeygrigorev.openscan.ui.DocumentsViewModel
 import io.github.alexeygrigorev.openscan.ui.EditScreen
 import io.github.alexeygrigorev.openscan.ui.EditViewModel
+import io.github.alexeygrigorev.openscan.ui.SettingsScreen
+import io.github.alexeygrigorev.openscan.ui.SettingsViewModel
 import io.github.alexeygrigorev.openscan.ui.theme.OpenScanTheme
 
 object Routes {
@@ -27,6 +29,7 @@ object Routes {
     const val CAPTURE = "capture"
     const val DOCUMENT = "document/{documentId}"
     const val EDIT = "edit/{pageId}"
+    const val SETTINGS = "settings"
 
     fun document(id: Long) = "document/$id"
     fun edit(id: Long) = "edit/$id"
@@ -56,6 +59,14 @@ fun OpenScanNavHost(container: AppContainer) {
                 viewModel = viewModel { DocumentsViewModel(container.repository) },
                 onOpenDocument = { id -> navController.navigate(Routes.document(id)) },
                 onScan = { navController.navigate(Routes.CAPTURE) },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+            )
+        }
+
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                viewModel = viewModel { SettingsViewModel(container.settings) },
+                onBack = { navController.popBackStack() },
             )
         }
 

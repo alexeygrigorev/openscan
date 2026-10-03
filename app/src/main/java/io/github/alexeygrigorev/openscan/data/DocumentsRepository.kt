@@ -1,6 +1,7 @@
 package io.github.alexeygrigorev.openscan.data
 
 import android.net.Uri
+import io.github.alexeygrigorev.openscan.scan.FeedbackUploader
 import io.github.alexeygrigorev.openscan.scan.PageImporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +18,7 @@ class DocumentsRepository(
     private val dao: OpenScanDao,
     private val files: DocumentFiles,
     private val importer: PageImporter,
+    private val feedbackUploader: FeedbackUploader,
 ) {
 
     fun observeDocuments(): Flow<List<DocumentSummary>> = dao.observeDocuments()
@@ -28,10 +30,18 @@ class DocumentsRepository(
             DocumentEntity(title = title, createdAt = System.currentTimeMillis(), updatedAt = System.currentTimeMillis())
         )
 
-    suspend fun importPage(documentId: Long, source: Uri): PageEntity = withContext(Dispatchers.IO) {
+    /**
+     * Imports one page. [detected] marks scanner captures whose document
+     * bounds were detected on-device (gallery imports are "manual"); it only
+     * annotates the opt-in telemetry upload, never the import itself.
+     */
+    suspend fun importPage(documentId: Long, source: Uri, detected: Boolean = false): PageEntity = withContext(Dispatchers.IO) {
         val position = dao.getPages(documentId).size
         val file = files.pageFile(documentId)
         importer.import(source, file)
+        // Opt-in telemetry: fire-and-forget, best-effort; the uploader no-ops
+        // unless the user enabled it and never blocks or fails this import.
+        feedbackUploader.maybeUpload(file, detected)
         val page = PageEntity(
             documentId = documentId,
             position = position,

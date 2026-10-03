@@ -8,6 +8,7 @@ activityCompose = "1.13.0"
 composeBom = "2026.03.01"
 navigation = "2.9.8"
 room = "2.8.5"
+datastore = "1.1.7"
 coroutines = "1.11.0"
 mlkitDocumentScanner = "16.0.0"
 mlkitTextRecognition = "16.0.1"
@@ -32,6 +33,7 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-material-icons = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }

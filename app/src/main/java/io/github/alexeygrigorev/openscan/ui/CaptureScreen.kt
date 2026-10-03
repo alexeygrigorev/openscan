@@ -52,8 +52,10 @@ class CaptureViewModel(private val repository: DocumentsRepository) : ViewModel(
     /**
      * Imports the given page images into a new document, in order. Pages that
      * fail to decode are skipped; the document still opens with what made it.
+     * [detected] marks pages captured through the document scanner (gallery
+     * imports are manual); it only annotates the opt-in telemetry upload.
      */
-    fun importPages(uris: List<Uri>, onDone: (Long) -> Unit) {
+    fun importPages(uris: List<Uri>, onDone: (Long) -> Unit, detected: Boolean = false) {
         if (uris.isEmpty() || busy.value) return
         busy.value = true
         error.value = null
@@ -61,7 +63,7 @@ class CaptureViewModel(private val repository: DocumentsRepository) : ViewModel(
             try {
                 val documentId = repository.createDocument()
                 uris.forEach { uri ->
-                    runCatching { repository.importPage(documentId, uri) }
+                    runCatching { repository.importPage(documentId, uri, detected) }
                         .onFailure { error.value = "A page could not be imported: ${it.message}" }
                 }
                 busy.value = false
@@ -91,7 +93,7 @@ fun CaptureScreen(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         val uris = DocumentScanner.pageUris(result.data)
-        if (uris.isEmpty()) onCancel() else viewModel.importPages(uris, onDone)
+        if (uris.isEmpty()) onCancel() else viewModel.importPages(uris, onDone, detected = true)
     }
 
     val pickLauncher = rememberLauncherForActivityResult(
