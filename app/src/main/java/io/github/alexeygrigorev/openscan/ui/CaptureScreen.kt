@@ -2,6 +2,7 @@ package io.github.alexeygrigorev.openscan.ui
 
 import android.net.Uri
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.PickVisualMediaRequest
@@ -10,10 +11,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,10 +41,22 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * One-shot result of a capture batch: (pages added, pages failed). [DocumentScreen]
+ * consumes it once and confirms the batch with a snackbar — nav arguments can't
+ * carry it, because the append flow returns to an existing entry via popBackStack.
+ */
+object BatchImport {
+    val summary = MutableStateFlow<Pair<Int, Int>?>(null)
+}
+
 class CaptureViewModel(private val repository: DocumentsRepository) : ViewModel() {
 
     val busy = MutableStateFlow(false)
     val error = MutableStateFlow<String?>(null)
+
+    /** (next page index, total) while a batch import runs; null when idle. */
+    val progress = MutableStateFlow<Pair<Int, Int>?>(null)
 
     fun reportScannerUnavailable() {
         error.value =
@@ -52,14 +67,14 @@ class CaptureViewModel(private val repository: DocumentsRepository) : ViewModel(
     /**
      * Imports the given page images into a document, in order: into [appendTo]
      * when set (the user is adding pages to an existing document), otherwise
-     * into a newly created one. Pages that fail to decode are skipped; the
-     * document still opens with what made it. [detected] marks pages captured
-     * through the document scanner (gallery imports are manual); it only
-     * annotates the opt-in telemetry upload.
+     * into a newly created one. Pages that fail to decode are skipped and
+     * counted; the document still opens with what made it. [detected] marks
+     * pages captured through the document scanner (gallery imports are
+     * manual); it only annotates the opt-in telemetry upload.
      */
     fun importPages(
         uris: List<Uri>,
-        onDone: (Long) -> Unit,
+        onDone: (documentId: Long, added: Int, failed: Int) -> Unit,
         detected: Boolean = false,
         appendTo: Long? = null,
     ) {
@@ -73,14 +88,18 @@ class CaptureViewModel(private val repository: DocumentsRepository) : ViewModel(
                 val documentId = appendTo
                     ?.takeIf { repository.getDocument(it) != null }
                     ?: repository.createDocument()
-                uris.forEach { uri ->
+                var failed = 0
+                uris.forEachIndexed { index, uri ->
+                    progress.value = index to uris.size
                     runCatching { repository.importPage(documentId, uri, detected) }
-                        .onFailure { error.value = "A page could not be imported: ${it.message}" }
+                        .onFailure { failed++ }
                 }
                 busy.value = false
-                onDone(documentId)
+                progress.value = null
+                onDone(documentId, uris.size - failed, failed)
             } catch (t: Throwable) {
                 busy.value = false
+                progress.value = null
                 error.value = t.message ?: "Could not create the document"
             }
         }
@@ -91,12 +110,14 @@ class CaptureViewModel(private val repository: DocumentsRepository) : ViewModel(
 @Composable
 fun CaptureScreen(
     viewModel: CaptureViewModel,
-    onDone: (Long) -> Unit,
+    onDone: (documentId: Long, added: Int, failed: Int) -> Unit,
     onCancel: () -> Unit,
     documentId: Long? = null,
+    galleryOnly: Boolean = false,
 ) {
     val busy by viewModel.busy.collectAsState()
     val error by viewModel.error.collectAsState()
+    val progress by viewModel.progress.collectAsState()
     val activity = LocalContext.current
 
     // The scan result arrives here when the Play services scanner activity
@@ -109,37 +130,61 @@ fun CaptureScreen(
         else viewModel.importPages(uris, onDone, detected = true, appendTo = documentId)
     }
 
+    // A batch can be large; the picker allows a generous multi-select.
     val pickLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
+        ActivityResultContracts.PickMultipleVisualMedia(maxItems = 100)
     ) { uris ->
         if (uris.isEmpty()) onCancel() else viewModel.importPages(uris, onDone, appendTo = documentId)
     }
 
-    // Launch the scanner exactly once per screen instance.
+    // Swallow back while the batch is running: popping would dispose this
+    // screen's view model and cancel the import half-way through.
+    BackHandler(enabled = busy) {}
+
+    // Launch one importer exactly once per screen instance: the photo picker
+    // straight away in gallery-only mode (the library's Import images entry),
+    // otherwise the Play services document scanner.
     var started by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        if (!started) {
-            started = true
-            val componentActivity = activity as? ComponentActivity
-            if (componentActivity == null) {
+        if (started) return@LaunchedEffect
+        started = true
+        if (galleryOnly) {
+            pickLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+            return@LaunchedEffect
+        }
+        val componentActivity = activity as? ComponentActivity
+        if (componentActivity == null) {
+            viewModel.reportScannerUnavailable()
+        } else {
+            try {
+                val sender = DocumentScanner.startScanIntent(componentActivity).await()
+                scanLauncher.launch(IntentSenderRequest.Builder(sender).build())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // The Task failed — Play services missing, outdated, or
+                // the scanner module not yet downloaded on this device.
                 viewModel.reportScannerUnavailable()
-            } else {
-                try {
-                    val sender = DocumentScanner.startScanIntent(componentActivity).await()
-                    scanLauncher.launch(IntentSenderRequest.Builder(sender).build())
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    // The Task failed — Play services missing, outdated, or
-                    // the scanner module not yet downloaded on this device.
-                    viewModel.reportScannerUnavailable()
-                }
             }
         }
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(if (documentId == null) "New document" else "Add pages") }) }
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        when {
+                            galleryOnly -> "Import images"
+                            documentId == null -> "New document"
+                            else -> "Add pages"
+                        }
+                    )
+                },
+            )
+        },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -148,7 +193,28 @@ fun CaptureScreen(
             contentAlignment = Alignment.Center,
         ) {
             if (busy) {
-                CircularProgressIndicator()
+                val batch = progress
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(48.dp),
+                ) {
+                    if (batch == null) {
+                        CircularProgressIndicator()
+                    } else {
+                        Text(
+                            "Importing page ${batch.first + 1} of ${batch.second}…",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        LinearProgressIndicator(
+                            progress = {
+                                if (batch.second == 0) 0f
+                                else (batch.first + 1f) / batch.second
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             } else {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,

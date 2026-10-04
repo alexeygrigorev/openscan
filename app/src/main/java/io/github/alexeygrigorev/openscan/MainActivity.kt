@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.alexeygrigorev.openscan.data.AppContainer
+import io.github.alexeygrigorev.openscan.ui.BatchImport
 import io.github.alexeygrigorev.openscan.ui.CaptureScreen
 import io.github.alexeygrigorev.openscan.ui.CaptureViewModel
 import io.github.alexeygrigorev.openscan.ui.DocumentScreen
@@ -26,7 +27,7 @@ import io.github.alexeygrigorev.openscan.ui.theme.OpenScanTheme
 
 object Routes {
     const val DOCUMENTS = "documents"
-    const val CAPTURE = "capture?documentId={documentId}"
+    const val CAPTURE = "capture?documentId={documentId}&gallery={gallery}"
     const val DOCUMENT = "document/{documentId}"
     const val EDIT = "edit/{pageId}"
     const val SETTINGS = "settings"
@@ -34,9 +35,17 @@ object Routes {
     fun document(id: Long) = "document/$id"
     fun edit(id: Long) = "edit/$id"
 
-    /** Without [documentId] the capture flow creates a new document; with one it appends. */
-    fun capture(documentId: Long? = null): String =
-        if (documentId == null) "capture" else "capture?documentId=$documentId"
+    /**
+     * Without [documentId] the capture flow creates a new document; with one
+     * it appends. [gallery] skips the scanner and opens the photo picker
+     * straight away (the library's Import images entry). Absent arguments are
+     * left out of the URI entirely so their nav defaults apply.
+     */
+    fun capture(documentId: Long? = null, gallery: Boolean = false): String =
+        buildString {
+            append("capture?gallery=$gallery")
+            if (documentId != null) append("&documentId=$documentId")
+        }
 }
 
 class MainActivity : ComponentActivity() {
@@ -62,7 +71,8 @@ fun OpenScanNavHost(container: AppContainer) {
             DocumentsScreen(
                 viewModel = viewModel { DocumentsViewModel(container.repository) },
                 onOpenDocument = { id -> navController.navigate(Routes.document(id)) },
-                onScan = { navController.navigate(Routes.CAPTURE) },
+                onScan = { navController.navigate(Routes.capture()) },
+                onImportImages = { navController.navigate(Routes.capture(gallery = true)) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
@@ -76,10 +86,16 @@ fun OpenScanNavHost(container: AppContainer) {
 
         composable(
             Routes.CAPTURE,
-            arguments = listOf(navArgument("documentId") {
-                type = NavType.LongType
-                defaultValue = -1L
-            }),
+            arguments = listOf(
+                navArgument("documentId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                },
+                navArgument("gallery") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
+            ),
         ) { entry ->
             // -1 (the default) means "create a new document"; a real id means
             // the scanned pages are appended to that existing document.
@@ -87,7 +103,9 @@ fun OpenScanNavHost(container: AppContainer) {
             CaptureScreen(
                 viewModel = viewModel { CaptureViewModel(container.repository) },
                 documentId = appendTo,
-                onDone = { documentId ->
+                galleryOnly = entry.arguments?.getBoolean("gallery", false) ?: false,
+                onDone = { documentId, added, failed ->
+                    BatchImport.summary.value = added to failed
                     if (appendTo != null) {
                         // The document screen sits right below in the back
                         // stack and picks the new pages up from its own flow.

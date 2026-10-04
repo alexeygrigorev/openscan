@@ -18,6 +18,7 @@ import kotlin.math.abs
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -27,6 +28,8 @@ import org.junit.runner.RunWith
  *  - the photo-picker import path (Documents → "Import images" → system
  *    picker → select → new document with the page on disk), which is the
  *    exact flow a user on a device without the ML Kit scanner module gets;
+ *  - the same path with a three-image multi-select, checking the batch
+ *    lands complete and is confirmed with a "Added 3 pages" summary;
  *  - the graceful fallback when Play services are missing and the scan
  *    button cannot open the document scanner (no crash, import offered).
  *
@@ -109,7 +112,8 @@ class PhotoPickerImportUiTest {
             launchApp(device)
             val before = pageFiles()
 
-            device.findObject(By.desc("Import images")).click()
+            device.wait(Until.findObject(By.desc("Import images")), 10_000)?.click()
+                ?: throw AssertionError("library screen never offered Import images")
             assertTrue(
                 "the system photo picker did not open; foreground=${device.currentPackageName}",
                 waitForPackage(device, pickerPackages, 15_000),
@@ -175,7 +179,82 @@ class PhotoPickerImportUiTest {
     }
 
     @Test
+    fun batchImportThroughSystemPhotoPickerAddsAllPages() {
+        val device = device()
+        val stamp = System.currentTimeMillis()
+        val seeded = listOf(
+            seedGalleryImage(Color.rgb(30, 200, 30), "openscan-batch-$stamp-1.jpg"),
+            seedGalleryImage(Color.rgb(30, 30, 200), "openscan-batch-$stamp-2.jpg"),
+            seedGalleryImage(Color.rgb(200, 200, 30), "openscan-batch-$stamp-3.jpg"),
+        )
+        try {
+            launchApp(device)
+            val before = pageFiles()
+
+            device.wait(Until.findObject(By.desc("Import images")), 10_000)?.click()
+                ?: throw AssertionError("library screen never offered Import images")
+            assertTrue(
+                "the system photo picker did not open; foreground=${device.currentPackageName}",
+                waitForPackage(device, pickerPackages, 15_000),
+            )
+
+            // The three seeded images are the most recent, so they head the
+            // "Recent" grid: select the first three cells in reading order.
+            val cells = device.findObjects(By.clickable(true))
+                .filter {
+                    val b = it.visibleBounds
+                    b.centerY() > 400 && b.width() in 250..520 && b.height() > 250
+                }
+                .sortedWith(compareBy({ it.visibleBounds.top }, { it.visibleBounds.left }))
+                .take(3)
+            assertTrue("expected 3 grid cells in the picker, got ${cells.size}", cells.size == 3)
+            cells.forEach { it.click() }
+
+            // Multi-select confirms with an Add button.
+            val add = device.wait(Until.findObject(By.textContains("Add")), 5_000)
+            assertNotNull("no Add button after multi-select:\n${hierarchySnippet(device)}", add)
+            add!!.click()
+
+            assertTrue(
+                "app did not come back to the foreground after import; foreground=${device.currentPackageName}",
+                waitForPackage(device, setOf(app), 20_000),
+            )
+
+            // The document screen confirms the batch once the import ends.
+            assertTrue(
+                "the 'Added 3 pages' confirmation never appeared",
+                device.wait(Until.hasObject(By.text("Added 3 pages")), 30_000),
+            )
+
+            // All three pages must be on disk as decodable JPEGs.
+            var added: Set<File> = emptySet()
+            val deadline = System.currentTimeMillis() + 20_000
+            while (System.currentTimeMillis() < deadline) {
+                added = pageFiles() - before
+                if (added.size >= 3) break
+                Thread.sleep(500)
+            }
+            assertTrue("expected 3 new page files, found ${added.size}", added.size >= 3)
+            added.forEach { file ->
+                val bitmap = Images.decodeScaled(file, maxDim = 64)
+                assertNotNull("imported page is not a decodable image: $file", bitmap)
+                bitmap?.recycle()
+            }
+        } finally {
+            seeded.forEach { target().contentResolver.delete(it, null, null) }
+        }
+    }
+
+    @Test
     fun scanWithoutPlayServicesShowsTheFallbackInsteadOfCrashing() {
+        // On devices WITH Play services the scanner opens (or shows its own
+        // module-download UI) instead of failing into our fallback — the
+        // premise of this test only holds on non-GMS images. Skip there.
+        val hasPlayServices = runCatching {
+            target().packageManager.getPackageInfo("com.google.android.gms", 0)
+        }.isSuccess
+        assumeTrue("device has Play services; the fallback path never shows there", !hasPlayServices)
+
         val device = device()
         launchApp(device)
 

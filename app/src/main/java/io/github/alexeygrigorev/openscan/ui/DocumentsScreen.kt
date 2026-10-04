@@ -1,9 +1,5 @@
 package io.github.alexeygrigorev.openscan.ui
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,16 +56,6 @@ class DocumentsViewModel(private val repository: DocumentsRepository) : ViewMode
     val documents: StateFlow<List<DocumentSummary>> = repository.observeDocuments()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Imports gallery images as a brand-new document; [onDone] receives its id. */
-    fun importIntoNewDocument(uris: List<Uri>, onDone: (Long) -> Unit) {
-        if (uris.isEmpty()) return
-        viewModelScope.launch {
-            val documentId = repository.createDocument()
-            uris.forEach { uri -> runCatching { repository.importPage(documentId, uri) } }
-            onDone(documentId)
-        }
-    }
-
     fun renameDocument(id: Long, title: String) {
         viewModelScope.launch { repository.renameDocument(id, title) }
     }
@@ -87,15 +73,10 @@ fun DocumentsScreen(
     viewModel: DocumentsViewModel,
     onOpenDocument: (Long) -> Unit,
     onScan: () -> Unit,
+    onImportImages: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val documents by viewModel.documents.collectAsState()
-
-    val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
-    ) { uris ->
-        viewModel.importIntoNewDocument(uris, onOpenDocument)
-    }
 
     var renaming by remember { mutableStateOf<DocumentSummary?>(null) }
     var deleting by remember { mutableStateOf<DocumentSummary?>(null) }
@@ -105,11 +86,7 @@ fun DocumentsScreen(
             TopAppBar(
                 title = { Text("OpenScan") },
                 actions = {
-                    IconButton(onClick = {
-                        importLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }) {
+                    IconButton(onClick = onImportImages) {
                         Icon(Icons.Filled.AddPhotoAlternate, contentDescription = "Import images")
                     }
                     IconButton(onClick = onOpenSettings) {

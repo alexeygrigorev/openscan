@@ -37,6 +37,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -234,6 +236,7 @@ fun DocumentScreen(
     val ocrText by viewModel.ocrText.collectAsState()
 
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     var renaming by remember { mutableStateOf(false) }
     var deletingDocument by remember { mutableStateOf(false) }
     var deletingPage by remember { mutableStateOf<PageEntity?>(null) }
@@ -241,6 +244,7 @@ fun DocumentScreen(
     var menuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(document?.title ?: "", maxLines = 1) },
@@ -326,6 +330,22 @@ fun DocumentScreen(
                     )
                 }
             }
+        }
+    }
+
+    // Confirm a finished capture batch (set by the capture flow just before
+    // it navigates here); consumed once so rotation doesn't replay it.
+    LaunchedEffect(Unit) {
+        BatchImport.summary.value?.let { (added, failed) ->
+            BatchImport.summary.value = null
+            snackbarHostState.showSnackbar(
+                when {
+                    added == 0 -> "No pages could be imported"
+                    failed == 0 -> "Added $added page${if (added == 1) "" else "s"}"
+                    else -> "Added $added page${if (added == 1) "" else "s"}, " +
+                        "$failed failed to import"
+                }
+            )
         }
     }
 
