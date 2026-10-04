@@ -50,18 +50,29 @@ class CaptureViewModel(private val repository: DocumentsRepository) : ViewModel(
     }
 
     /**
-     * Imports the given page images into a new document, in order. Pages that
-     * fail to decode are skipped; the document still opens with what made it.
-     * [detected] marks pages captured through the document scanner (gallery
-     * imports are manual); it only annotates the opt-in telemetry upload.
+     * Imports the given page images into a document, in order: into [appendTo]
+     * when set (the user is adding pages to an existing document), otherwise
+     * into a newly created one. Pages that fail to decode are skipped; the
+     * document still opens with what made it. [detected] marks pages captured
+     * through the document scanner (gallery imports are manual); it only
+     * annotates the opt-in telemetry upload.
      */
-    fun importPages(uris: List<Uri>, onDone: (Long) -> Unit, detected: Boolean = false) {
+    fun importPages(
+        uris: List<Uri>,
+        onDone: (Long) -> Unit,
+        detected: Boolean = false,
+        appendTo: Long? = null,
+    ) {
         if (uris.isEmpty() || busy.value) return
         busy.value = true
         error.value = null
         viewModelScope.launch {
             try {
-                val documentId = repository.createDocument()
+                // The target may have been deleted while the scanner was open;
+                // fall back to a fresh document rather than orphan the pages.
+                val documentId = appendTo
+                    ?.takeIf { repository.getDocument(it) != null }
+                    ?: repository.createDocument()
                 uris.forEach { uri ->
                     runCatching { repository.importPage(documentId, uri, detected) }
                         .onFailure { error.value = "A page could not be imported: ${it.message}" }
@@ -82,6 +93,7 @@ fun CaptureScreen(
     viewModel: CaptureViewModel,
     onDone: (Long) -> Unit,
     onCancel: () -> Unit,
+    documentId: Long? = null,
 ) {
     val busy by viewModel.busy.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -93,13 +105,14 @@ fun CaptureScreen(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         val uris = DocumentScanner.pageUris(result.data)
-        if (uris.isEmpty()) onCancel() else viewModel.importPages(uris, onDone, detected = true)
+        if (uris.isEmpty()) onCancel()
+        else viewModel.importPages(uris, onDone, detected = true, appendTo = documentId)
     }
 
     val pickLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
     ) { uris ->
-        if (uris.isEmpty()) onCancel() else viewModel.importPages(uris, onDone)
+        if (uris.isEmpty()) onCancel() else viewModel.importPages(uris, onDone, appendTo = documentId)
     }
 
     // Launch the scanner exactly once per screen instance.
@@ -126,7 +139,7 @@ fun CaptureScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("New document") }) }
+        topBar = { TopAppBar(title = { Text(if (documentId == null) "New document" else "Add pages") }) }
     ) { padding ->
         Box(
             modifier = Modifier

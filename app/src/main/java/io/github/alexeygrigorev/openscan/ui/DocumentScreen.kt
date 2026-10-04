@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -220,6 +221,7 @@ class DocumentViewModel(
 fun DocumentScreen(
     viewModel: DocumentViewModel,
     onEditPage: (Long) -> Unit,
+    onAddPages: () -> Unit,
     onBack: () -> Unit,
 ) {
     val document by viewModel.document.collectAsState()
@@ -253,6 +255,9 @@ fun DocumentScreen(
                             Icon(Icons.Filled.Check, contentDescription = "Done reordering")
                         }
                     } else {
+                        IconButton(onClick = onAddPages) {
+                            Icon(Icons.Filled.AddPhotoAlternate, contentDescription = "Add pages")
+                        }
                         IconButton(
                             onClick = { viewModel.exportPdf() },
                             enabled = !exporting && pages.isNotEmpty(),
