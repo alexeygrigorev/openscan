@@ -1,7 +1,10 @@
 package io.github.alexeygrigorev.openscan.data
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import io.github.alexeygrigorev.openscan.BuildConfig
+import io.github.alexeygrigorev.openscan.update.ReleaseChecker
+import io.github.alexeygrigorev.openscan.update.UpdateMonitor
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -81,9 +84,23 @@ class AppContainer(context: Context) {
     )
     val repository = DocumentsRepository(database.openscanDao(), files, importer, uploader)
 
+    // GitHub-release update check (the "Check for updates" seam). The flavour
+    // of this install decides which published APK an available update offers:
+    // release installs get openscan-<v>-release.apk, debug installs the
+    // -debug.apk published alongside it.
+    val updateMonitor = UpdateMonitor(
+        ReleaseChecker(
+            currentVersion = appVersionName(),
+            preferReleaseApk = !isDebuggableInstall(),
+        ),
+    )
+
     private fun appVersionName(): String = try {
         appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName ?: ""
     } catch (_: Exception) {
         ""
     }
+
+    private fun isDebuggableInstall(): Boolean =
+        (appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 }

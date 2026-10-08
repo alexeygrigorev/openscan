@@ -36,12 +36,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.alexeygrigorev.openscan.data.DocumentSummary
 import io.github.alexeygrigorev.openscan.data.DocumentsRepository
+import io.github.alexeygrigorev.openscan.update.ReleaseChecker
+import io.github.alexeygrigorev.openscan.update.UpdateMonitor
+import io.github.alexeygrigorev.openscan.update.UpdateStatus
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -71,12 +75,15 @@ private val listDateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()
 @Composable
 fun DocumentsScreen(
     viewModel: DocumentsViewModel,
+    updateMonitor: UpdateMonitor,
     onOpenDocument: (Long) -> Unit,
     onScan: () -> Unit,
     onImportImages: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val documents by viewModel.documents.collectAsState()
+    val updateState by updateMonitor.state.collectAsState()
+    val context = LocalContext.current
 
     var renaming by remember { mutableStateOf<DocumentSummary?>(null) }
     var deleting by remember { mutableStateOf<DocumentSummary?>(null) }
@@ -105,35 +112,47 @@ fun DocumentsScreen(
             )
         },
     ) { padding ->
-        if (documents.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No documents yet", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Tap Scan to create your first one.\nNo account, no watermark, nothing leaves this phone.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            val update = updateState.available
+            if (updateState.status == UpdateStatus.AVAILABLE && !updateState.dismissed && update != null) {
+                UpdateBanner(
+                    available = update,
+                    onDownload = { ReleaseChecker.openReleaseUrl(context, update.downloadUrl) },
+                    onNotes = { ReleaseChecker.openReleaseUrl(context, update.notesUrl) },
+                    onDismiss = { updateMonitor.dismiss() },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-            ) {
-                items(documents, key = { it.document.id }) { summary ->
-                    DocumentRow(
-                        summary = summary,
-                        onClick = { onOpenDocument(summary.document.id) },
-                        onRename = { renaming = summary },
-                        onDelete = { deleting = summary },
-                    )
+            Box(modifier = Modifier.weight(1f)) {
+                if (documents.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("No documents yet", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Tap Scan to create your first one.\nNo account, no watermark, nothing leaves this phone.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(documents, key = { it.document.id }) { summary ->
+                            DocumentRow(
+                                summary = summary,
+                                onClick = { onOpenDocument(summary.document.id) },
+                                onRename = { renaming = summary },
+                                onDelete = { deleting = summary },
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -53,6 +53,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val container = (application as OpenScanApp).container
+        // One update check per launch; the banner and the settings screen both
+        // observe the same app-scoped answer.
+        container.updateMonitor.checkAtLaunch()
         setContent {
             OpenScanTheme {
                 OpenScanNavHost(container)
@@ -70,6 +73,7 @@ fun OpenScanNavHost(container: AppContainer) {
         composable(Routes.DOCUMENTS) {
             DocumentsScreen(
                 viewModel = viewModel { DocumentsViewModel(container.repository) },
+                updateMonitor = container.updateMonitor,
                 onOpenDocument = { id -> navController.navigate(Routes.document(id)) },
                 onScan = { navController.navigate(Routes.capture()) },
                 onImportImages = { navController.navigate(Routes.capture(gallery = true)) },
@@ -80,6 +84,7 @@ fun OpenScanNavHost(container: AppContainer) {
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 viewModel = viewModel { SettingsViewModel(container.settings) },
+                updateMonitor = container.updateMonitor,
                 onBack = { navController.popBackStack() },
             )
         }
