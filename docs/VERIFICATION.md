@@ -42,6 +42,25 @@ tests; ship `v0.1.1` or later.
   emulator** (no GMS) — verify manually on hardware before promoting to
   production. Everything after capture (import → edit → export) is covered
   above.
+- **Batch capture (foss flavor)** — the own-pipeline capture flow
+  (`app/src/foss`, `BatchScanScreen`/`BatchScanViewModel`): continuous
+  auto-capture while the OpenCV quad detector holds the document's corners
+  steady, Stop, then the review/correct grid (drag corners, re-detect,
+  rotate, delete) that warps the kept pages into one document. Since this
+  change, save also keeps each page's original camera frame next to the
+  cropped page (`documents/<docId>/originals/<pageId>.jpg`) unless
+  Settings → Capture → "Save original photos" is off (default on; the
+  setting's default is unit-tested). This is what makes future re-crops and
+  a "share captures for debugging" export possible. Verified so far at
+  build level only: both flavors compile, unit tests per flavor, both debug
+  APKs assemble, and the merged manifests satisfy product rule 3 (play:
+  INTERNET only; foss: INTERNET + CAMERA, and nothing else). The camera
+  loop itself **needs hardware** — like the GMS scan activity it cannot run
+  on a headless CI — so before promoting: on-device pass over capture →
+  Stop → review → save on a real camera, including the permission-denied
+  fallback (gallery import), torch toggle, and an originals-kept check
+  (files appear under the document dir; deleting the page removes its
+  original).
 - **PDF export** — `PdfExporterInstrumentedTest` + `BatchPipeline…`: A4
   sheets (595×842 pt, swapped for landscape), one page per scan, verified
   by rendering each sheet and checking pixels.

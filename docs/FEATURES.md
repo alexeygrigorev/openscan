@@ -24,8 +24,8 @@ current status.
 |---|---|---|---|
 | Auto edge detection | Free (with ads) | P0 | ✅ shipped (ML Kit scanner) |
 | Perspective correction | Free | P0 | ✅ shipped |
-| Manual corner adjustment | Free | P0 | ✅ shipped (provided by the Play services scanner UI, not in-app editing; in-app editing offers rotate/delete/OCR) |
-| Batch / multi-page scan | Free (caps) | P0 | ✅ shipped (up to 50 pages) |
+| Manual corner adjustment | Free | P0 | ✅ shipped (play: the Play services scanner UI; foss: drag-the-corners editor in the batch review grid; in-app page editing offers rotate/delete/OCR) |
+| Batch / multi-page scan | Free (caps) | P0 | ✅ shipped (play: the ML Kit scanner's multi-page UI, up to 50 pages; foss: own batch capture — pages auto-snap while you flip, Stop → review/correct grid → one document). Foss saves keep the original camera frame next to each cropped page (Settings → Capture → "Save original photos", on by default) so crops can be redone and captures shared for debugging later |
 | Image filters (grayscale / B&W / enhance) | Basic free, Magic Color premium | P0 | ✅ shipped (provided by the Play services scanner UI, not in-app editing; in-app editing offers rotate/delete/OCR) |
 | PDF export (multi-page) | Free but **watermarked** | P0 | ✅ shipped — never watermarked |
 | Share / export targets | Free | P0 | ✅ shipped (system share sheet, FileProvider) |
@@ -42,8 +42,8 @@ current status.
 | Password-protected PDF export | Premium | P1 | ⏳ roadmap |
 | E-signature (draw + place on page) | Limited free | P1 | ⏳ roadmap |
 | Search inside documents (OCR full-text) | Partial free | P1 | ⏳ roadmap (Room FTS over OCR text) |
-| Auto-capture (steady-frame snap) | Free | P1 | ⏳ roadmap (own-pipeline phase) |
-| In-app capture with our own camera UI | n/a | P1 | ⏳ roadmap (CameraX + OpenCV, unlocks F-Droid) |
+| Auto-capture (steady-frame snap) | Free | P1 | ✅ shipped (foss flavor: the viewfinder snaps when the OpenCV quad detector holds the document's corners steady for two frames after a cooldown; re-arms on page flip) |
+| In-app capture with our own camera UI | n/a | P1 | ✅ shipped (foss flavor: CameraX preview + our OpenCV quad detector — [ScanPipeline](../app/src/main/java/io/github/alexeygrigorev/openscan/scan/ScanPipeline.kt); torch, manual Snap, Stop → review; play build unchanged, GMS scanner, zero permissions) |
 | ID card mode (both sides, one page) | Free-ish | P2 | ⏳ backlog |
 | Whiteboard / blackboard mode | Free | P2 | ⏳ backlog |
 | Annotation / markup (pen, highlight) | Basic free | P2 | ⏳ backlog |
@@ -54,7 +54,7 @@ current status.
 | QR / barcode scanning | Free | P2 | ⏳ backlog (ML Kit barcode) |
 | Low-light / night enhancement | Partially premium | P2 | ⏳ backlog |
 | Optional user-configured sync (WebDAV / Nextcloud / Paperless-ngx) | Cloud-tied (their cloud) | P2 | ⏳ backlog — self-hosted push, never a OpenScan account |
-| F-Droid flavor (own CameraX+OpenCV pipeline) | n/a | P2 | ⏳ backlog (de-Googled devices) |
+| F-Droid flavor (own CameraX+OpenCV pipeline) | n/a | P2 | ✅ shipped (`foss` flavor: the only build declaring CAMERA, in its own manifest — app/src/foss/AndroidManifest.xml; no GMS document-scanner dependency) |
 | PDF → Word/Excel conversion | Premium (cloud) | Skip | ❌ server-bound |
 | Fax | Paid credits | Skip | ❌ |
 | Cloud account + sync (a OpenScan cloud) | ~200–400 MB free | Skip | ❌ no accounts, ever |
