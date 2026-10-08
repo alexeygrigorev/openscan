@@ -6,15 +6,19 @@ name: Publish release
 #               points EXACTLY at the dispatched main HEAD, and that no
 #               GitHub release for the tag exists yet. Emits the authorized
 #               (tag, sha) pair.
-#   build     — builds the debug APK and the signed release APK + AAB from
-#               the authorized SHA, validates APK identity, version metadata
-#               and the signing certificate, and uploads the artifacts.
+#   build     — builds the signed foss release APK from the authorized SHA,
+#               validates APK identity, version metadata and the signing
+#               certificate, and uploads the artifact.
 #   publish   — the ONLY job with a write token. Re-verifies main, the tag
 #               and release absence immediately before creating the GitHub
 #               release with the artifacts from THIS run.
 #
 # Run it with:  gh workflow run publish-release.yml --ref main -f release_tag=vX.Y.Z
 # See docs/RELEASING.md.
+#
+# Foss-only for now: GitHub releases carry exactly one sideloadable artifact
+# (the signed foss release APK). Play-flavor distribution — the .aab, Play
+# Console, a play update path — is deferred, tracked in issue #2.
 
 on:
   workflow_dispatch:
@@ -153,42 +157,11 @@ jobs:
             echo "name=${version_name}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Assemble debug APK
-        run: ./gradlew :app:assemblePlayDebug --stacktrace --console=plain
-        env:
-          VERSION_CODE: ${{ steps.version.outputs.code }}
-          VERSION_NAME: ${{ steps.version.outputs.name }}
-          # Opt-in telemetry endpoint; empty secrets keep the feature inert.
-          OPENSCAN_TELEMETRY_UPLOAD_URL: ${{ secrets.OPENSCAN_TELEMETRY_UPLOAD_URL }}
-          OPENSCAN_TELEMETRY_UPLOAD_TOKEN: ${{ secrets.OPENSCAN_TELEMETRY_UPLOAD_TOKEN }}
-
-      - name: Verify debug APK version metadata
-        run: |
-          set -euo pipefail
-          aapt2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
-          apk=app/build/outputs/apk/play/debug/app-play-debug.apk
-          badging="$("$aapt2" dump badging "$apk")"
-          got_code="$(printf '%s\n' "$badging" | grep -o "versionCode='[^']*'" | head -1 | cut -d"'" -f2)"
-          got_name="$(printf '%s\n' "$badging" | grep -o "versionName='[^']*'" | head -1 | cut -d"'" -f2)"
-          test -n "$got_code" || { echo "::error::no versionCode in aapt2 badging output"; exit 1; }
-          test "$got_code" = "$VERSION_CODE" || { echo "::error::APK versionCode is ${got_code}, expected ${VERSION_CODE}"; exit 1; }
-          test "$got_name" = "$VERSION_NAME" || { echo "::error::APK versionName is ${got_name}, expected ${VERSION_NAME}"; exit 1; }
-          echo "debug APK metadata OK (versionCode=${got_code} versionName=${got_name})"
-        env:
-          VERSION_CODE: ${{ steps.version.outputs.code }}
-          VERSION_NAME: ${{ steps.version.outputs.name }}
-
-      - name: Verify debug APK signature scheme
-        run: scripts/check-apk-signing.sh --variant debug --apk app/build/outputs/apk/play/debug/app-play-debug.apk
-
-      - name: Rename debug APK
-        run: mv app/build/outputs/apk/play/debug/app-play-debug.apk "app/build/outputs/apk/play/debug/openscan-${{ steps.version.outputs.name }}-debug.apk"
-
       # Release signing activates in app/build.gradle.kts only when
       # ANDROID_RELEASE_KEYSTORE_BASE64 is present; publish always provides
       # the secrets, so a silent debug-signed fallback cannot ship.
-      - name: Assemble signed release APK and AAB
-        run: ./gradlew :app:assemblePlayRelease :app:bundlePlayRelease --stacktrace --console=plain
+      - name: Assemble signed foss release APK
+        run: ./gradlew :app:assembleFossRelease --stacktrace --console=plain
         env:
           VERSION_CODE: ${{ steps.version.outputs.code }}
           VERSION_NAME: ${{ steps.version.outputs.name }}
@@ -204,7 +177,7 @@ jobs:
         run: |
           set -euo pipefail
           aapt2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
-          apk=app/build/outputs/apk/play/release/app-play-release.apk
+          apk=app/build/outputs/apk/foss/release/app-foss-release.apk
           badging="$("$aapt2" dump badging "$apk")"
           got_code="$(printf '%s\n' "$badging" | grep -o "versionCode='[^']*'" | head -1 | cut -d"'" -f2)"
           got_name="$(printf '%s\n' "$badging" | grep -o "versionName='[^']*'" | head -1 | cut -d"'" -f2)"
@@ -219,33 +192,29 @@ jobs:
       # ANDROID_RELEASE_CERT_SHA256 — a wrong keystore fails here, before
       # anything is published.
       - name: Verify release APK signing identity
-        run: scripts/check-apk-signing.sh --variant release --apk app/build/outputs/apk/play/release/app-play-release.apk
+        run: scripts/check-apk-signing.sh --variant release --apk app/build/outputs/apk/foss/release/app-foss-release.apk
         env:
           ANDROID_RELEASE_CERT_SHA256: ${{ secrets.ANDROID_RELEASE_CERT_SHA256 }}
 
-      - name: Rename release artifacts
+      - name: Rename the release APK
         run: |
           set -euo pipefail
-          mv app/build/outputs/apk/play/release/app-play-release.apk \
-            "app/build/outputs/apk/play/release/openscan-${{ steps.version.outputs.name }}-release.apk"
-          mv app/build/outputs/bundle/playRelease/app-play-release.aab \
-            "app/build/outputs/bundle/playRelease/openscan-${{ steps.version.outputs.name }}-release.aab"
+          mv app/build/outputs/apk/foss/release/app-foss-release.apk \
+            "app/build/outputs/apk/foss/release/openscan-${{ steps.version.outputs.name }}-foss-release.apk"
 
-      # upload-artifact keeps directory structure relative to the paths'
-      # common ancestor — staging from three output directories would nest
-      # apk/ and bundle/ subdirectories into the artifact and break the
-      # publish job's flat glob. Copy everything into one flat directory.
-      - name: Stage validated artifacts for the publish job
+      # upload-artifact keeps directory structure relative to the path's
+      # common ancestor — staging straight from app/build/outputs would nest
+      # apk/ subdirectories into the artifact and break the publish job's
+      # flat glob. Copy the APK into one flat directory.
+      - name: Stage the validated artifact for the publish job
         run: |
           set -euo pipefail
           mkdir -p release-staging
-          cp app/build/outputs/apk/play/debug/openscan-*-debug.apk release-staging/
-          cp app/build/outputs/apk/play/release/openscan-*-release.apk release-staging/
-          cp app/build/outputs/bundle/playRelease/openscan-*-release.aab release-staging/
-          test "$(find release-staging -maxdepth 1 -type f | wc -l)" -eq 3 ||
-            { echo "::error::expected exactly 3 staged artifacts (debug APK, release APK, release AAB)"; exit 1; }
+          cp app/build/outputs/apk/foss/release/openscan-*-foss-release.apk release-staging/
+          test "$(find release-staging -maxdepth 1 -type f | wc -l)" -eq 1 ||
+            { echo "::error::expected exactly 1 staged artifact (foss release APK)"; exit 1; }
 
-      - name: Upload validated artifacts for the publish job
+      - name: Upload the validated artifact for the publish job
         uses: actions/upload-artifact@v7
         with:
           name: openscan-release-assets
@@ -319,8 +288,8 @@ jobs:
           set -euo pipefail
           # Only regular files may reach gh release create — a directory in
           # the glob makes the asset upload fail after the release exists.
-          test "$(find release-assets -type f | wc -l)" -eq 3 ||
-            { echo "::error::expected exactly 3 downloaded artifacts (debug APK, release APK, release AAB)"; find release-assets; exit 1; }
+          test "$(find release-assets -type f | wc -l)" -eq 1 ||
+            { echo "::error::expected exactly 1 downloaded artifact (foss release APK)"; find release-assets; exit 1; }
           ls -l release-assets
           gh release create "$RELEASE_TAG" release-assets/* \
             --repo "${{ github.repository }}" \

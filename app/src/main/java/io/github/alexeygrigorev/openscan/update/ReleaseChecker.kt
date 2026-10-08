@@ -93,8 +93,9 @@ fun releaseVersionLabel(versionName: String): String {
 
 /**
  * Pick the APK for this build flavour: an `openscan…-debug.apk` for a debug
- * install, `…-release.apk` for a release install (both are published with
- * every release); else the first APK.
+ * install, `…-release.apk` (today: `…-foss-release.apk`, the only flavour
+ * published) for a release install; else the first APK. When the play flavour
+ * returns to the release page this needs flavour matching — see issue #2.
  */
 fun pickApkAsset(assets: List<ReleaseAsset>, preferRelease: Boolean): String? {
     var firstApk: String? = null

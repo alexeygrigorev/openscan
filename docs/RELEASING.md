@@ -108,8 +108,8 @@ with is the **upload key**. That is expected and good:
 
 ### 1. Make sure main is green
 
-CI (`.github/workflows/ci.yml`) runs unit tests and assembles a debug APK
-on every push to main and every PR. Release from a green main.
+CI (`.github/workflows/ci.yml`) runs unit tests and assembles the play and
+foss debug APKs on every push to main and every PR. Release from a green main.
 
 ### 2. Tag the current main head
 
@@ -139,19 +139,22 @@ design.
 | Job        | Permissions      | What it does |
 | ---------- | ---------------- | ------------ |
 | `authorize`| read only        | Only runs from main. Proves the tag exists and points at the dispatched main HEAD, and that no GitHub release for the tag exists (a clean 404 only — any other API error fails the job). Outputs the authorized `(tag, sha)` pair. |
-| `build`    | read only        | Checks out the authorized SHA, re-confirms HEAD and the tag, derives the version from the tag (self-test + `--ref`), assembles the debug APK, then `assembleRelease` + `bundleRelease` with the four signing secrets. Validates version metadata of both APKs against the derived code/name with `aapt2`, checks the debug APK signature scheme, and requires the release APK's signer certificate to match `ANDROID_RELEASE_CERT_SHA256`. Uploads the three renamed artifacts. |
+| `build`    | read only        | Checks out the authorized SHA, re-confirms HEAD and the tag, derives the version from the tag (self-test + `--ref`), assembles the signed foss release APK (`assembleFossRelease`) with the four signing secrets. Validates the APK's version metadata against the derived code/name with `aapt2` and requires its signer certificate to match `ANDROID_RELEASE_CERT_SHA256`. Uploads the renamed artifact. |
 | `publish`  | **write**        | The only job with `contents: write`. Re-verifies, against the remote, that main has not moved, the tag still resolves to the authorized commit, and the release still does not exist (race protection). Then downloads the artifacts from this exact run and creates the GitHub release with `--verify-tag --generate-notes`. |
 
 ### 5. Collect the artifacts
 
 The GitHub Release at `https://github.com/alexeygrigorev/openscan/releases/tag/vX.Y.Z`
-carries:
+carries exactly one installable artifact:
 
-- `openscan-X.Y.Z-release.aab` — upload this in Play Console (Production or
-  a testing track).
-- `openscan-X.Y.Z-release.apk` — signed release APK for direct sideloading
-  and for a future F-Droid bundle.
-- `openscan-X.Y.Z-debug.apk` — for QA installs; do not distribute.
+- `openscan-X.Y.Z-foss-release.apk` — signed foss release APK for direct
+  sideloading. The only flavor published for now; Play distribution of the
+  `play` flavor (AAB, Play Console, a play update path) is deferred — see
+  issue #2.
+
+No debug APK and no `.aab` are published: the CI debug keystore rotates on
+every run, so a debug APK from releases can never install over any existing
+OpenScan build, and an `.aab` is not sideloadable at all.
 
 ## Troubleshooting
 
