@@ -13,7 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.alexeygrigorev.openscan.data.AppContainer
 import io.github.alexeygrigorev.openscan.ui.BatchImport
-import io.github.alexeygrigorev.openscan.ui.CaptureScreen
+import io.github.alexeygrigorev.openscan.ui.CaptureRoute
 import io.github.alexeygrigorev.openscan.ui.CaptureViewModel
 import io.github.alexeygrigorev.openscan.ui.DocumentScreen
 import io.github.alexeygrigorev.openscan.ui.DocumentViewModel
@@ -105,7 +105,7 @@ fun OpenScanNavHost(container: AppContainer) {
             // -1 (the default) means "create a new document"; a real id means
             // the scanned pages are appended to that existing document.
             val appendTo = entry.arguments?.getLong("documentId", -1L)?.takeIf { it > 0 }
-            CaptureScreen(
+            CaptureRoute(
                 viewModel = viewModel { CaptureViewModel(container.repository) },
                 documentId = appendTo,
                 galleryOnly = entry.arguments?.getBoolean("gallery", false) ?: false,

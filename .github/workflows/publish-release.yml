@@ -154,7 +154,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Assemble debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace --console=plain
+        run: ./gradlew :app:assemblePlayDebug --stacktrace --console=plain
         env:
           VERSION_CODE: ${{ steps.version.outputs.code }}
           VERSION_NAME: ${{ steps.version.outputs.name }}
@@ -166,7 +166,7 @@ jobs:
         run: |
           set -euo pipefail
           aapt2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
-          apk=app/build/outputs/apk/debug/app-debug.apk
+          apk=app/build/outputs/apk/play/debug/app-play-debug.apk
           badging="$("$aapt2" dump badging "$apk")"
           got_code="$(printf '%s\n' "$badging" | grep -o "versionCode='[^']*'" | head -1 | cut -d"'" -f2)"
           got_name="$(printf '%s\n' "$badging" | grep -o "versionName='[^']*'" | head -1 | cut -d"'" -f2)"
@@ -179,16 +179,16 @@ jobs:
           VERSION_NAME: ${{ steps.version.outputs.name }}
 
       - name: Verify debug APK signature scheme
-        run: scripts/check-apk-signing.sh --variant debug --apk app/build/outputs/apk/debug/app-debug.apk
+        run: scripts/check-apk-signing.sh --variant debug --apk app/build/outputs/apk/play/debug/app-play-debug.apk
 
       - name: Rename debug APK
-        run: mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/openscan-${{ steps.version.outputs.name }}-debug.apk"
+        run: mv app/build/outputs/apk/play/debug/app-play-debug.apk "app/build/outputs/apk/play/debug/openscan-${{ steps.version.outputs.name }}-debug.apk"
 
       # Release signing activates in app/build.gradle.kts only when
       # ANDROID_RELEASE_KEYSTORE_BASE64 is present; publish always provides
       # the secrets, so a silent debug-signed fallback cannot ship.
       - name: Assemble signed release APK and AAB
-        run: ./gradlew :app:assembleRelease :app:bundleRelease --stacktrace --console=plain
+        run: ./gradlew :app:assemblePlayRelease :app:bundlePlayRelease --stacktrace --console=plain
         env:
           VERSION_CODE: ${{ steps.version.outputs.code }}
           VERSION_NAME: ${{ steps.version.outputs.name }}
@@ -204,7 +204,7 @@ jobs:
         run: |
           set -euo pipefail
           aapt2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
-          apk=app/build/outputs/apk/release/app-release.apk
+          apk=app/build/outputs/apk/play/release/app-play-release.apk
           badging="$("$aapt2" dump badging "$apk")"
           got_code="$(printf '%s\n' "$badging" | grep -o "versionCode='[^']*'" | head -1 | cut -d"'" -f2)"
           got_name="$(printf '%s\n' "$badging" | grep -o "versionName='[^']*'" | head -1 | cut -d"'" -f2)"
@@ -219,17 +219,17 @@ jobs:
       # ANDROID_RELEASE_CERT_SHA256 — a wrong keystore fails here, before
       # anything is published.
       - name: Verify release APK signing identity
-        run: scripts/check-apk-signing.sh --variant release --apk app/build/outputs/apk/release/app-release.apk
+        run: scripts/check-apk-signing.sh --variant release --apk app/build/outputs/apk/play/release/app-play-release.apk
         env:
           ANDROID_RELEASE_CERT_SHA256: ${{ secrets.ANDROID_RELEASE_CERT_SHA256 }}
 
       - name: Rename release artifacts
         run: |
           set -euo pipefail
-          mv app/build/outputs/apk/release/app-release.apk \
-            "app/build/outputs/apk/release/openscan-${{ steps.version.outputs.name }}-release.apk"
-          mv app/build/outputs/bundle/release/app-release.aab \
-            "app/build/outputs/bundle/release/openscan-${{ steps.version.outputs.name }}-release.aab"
+          mv app/build/outputs/apk/play/release/app-play-release.apk \
+            "app/build/outputs/apk/play/release/openscan-${{ steps.version.outputs.name }}-release.apk"
+          mv app/build/outputs/bundle/playRelease/app-play-release.aab \
+            "app/build/outputs/bundle/playRelease/openscan-${{ steps.version.outputs.name }}-release.aab"
 
       # upload-artifact keeps directory structure relative to the paths'
       # common ancestor — staging from three output directories would nest
@@ -239,9 +239,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-staging
-          cp app/build/outputs/apk/debug/openscan-*-debug.apk release-staging/
-          cp app/build/outputs/apk/release/openscan-*-release.apk release-staging/
-          cp app/build/outputs/bundle/release/openscan-*-release.aab release-staging/
+          cp app/build/outputs/apk/play/debug/openscan-*-debug.apk release-staging/
+          cp app/build/outputs/apk/play/release/openscan-*-release.apk release-staging/
+          cp app/build/outputs/bundle/playRelease/openscan-*-release.aab release-staging/
           test "$(find release-staging -maxdepth 1 -type f | wc -l)" -eq 3 ||
             { echo "::error::expected exactly 3 staged artifacts (debug APK, release APK, release AAB)"; exit 1; }
 

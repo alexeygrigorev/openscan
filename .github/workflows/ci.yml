@@ -55,27 +55,33 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Unit tests + assemble debug APK
-        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace --console=plain
+      - name: Unit tests + assemble debug APKs
+        # Both distribution flavors (play = GMS scanner, foss = own CameraX
+        # capture); unit tests are flavor-independent but per-variant tasks.
+        run: ./gradlew :app:testPlayDebugUnitTest :app:testFossDebugUnitTest :app:assemblePlayDebug :app:assembleFossDebug --stacktrace --console=plain
 
       # Instrumented tests and the on-device eval benchmark need androidTest
       # to compile; a signature change in main sources used to be able to
-      # break it without CI noticing.
+      # break it without CI noticing. Compiled against play (the GMS-flavored
+      # UI tests live there).
       - name: Compile instrumented tests
-        run: ./gradlew :app:compileDebugAndroidTestKotlin --stacktrace --console=plain
+        run: ./gradlew :app:compilePlayDebugAndroidTestKotlin :app:compileFossDebugAndroidTestKotlin --stacktrace --console=plain
 
-      - name: Rename debug APK
+      - name: Rename debug APKs
         run: |
-          apk=app/build/outputs/apk/debug/app-debug.apk
+          apk=app/build/outputs/apk/play/debug/app-play-debug.apk
           test -f "$apk" || { echo "::error::debug APK missing at $apk"; exit 1; }
           # VERSION_NAME is unset on branch/PR builds (no release tag): the
           # published artifact name falls back to `openscan-dev-debug.apk`.
-          mv "$apk" "app/build/outputs/apk/debug/openscan-${VERSION_NAME:-dev}-debug.apk"
+          mv "$apk" "app/build/outputs/apk/play/debug/openscan-${VERSION_NAME:-dev}-debug.apk"
+          apk=app/build/outputs/apk/foss/debug/app-foss-debug.apk
+          test -f "$apk" || { echo "::error::debug APK missing at $apk"; exit 1; }
+          mv "$apk" "app/build/outputs/apk/foss/debug/openscan-${VERSION_NAME:-dev}-foss-debug.apk"
 
-      - name: Upload debug APK
+      - name: Upload debug APKs
         uses: actions/upload-artifact@v7
         with:
           name: openscan-debug-apk
-          path: app/build/outputs/apk/debug/openscan-*-debug.apk
+          path: app/build/outputs/apk/*/debug/openscan-*-debug.apk
           retention-days: 7
           if-no-files-found: error

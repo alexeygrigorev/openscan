@@ -47,6 +47,23 @@ android {
         }
     }
 
+    // Distribution flavors (docs/FEATURES.md, product rule 3 — zero permission
+    // creep): `play` keeps capture inside Google Play services' ML Kit
+    // document scanner and never gains the CAMERA permission; `foss` swaps
+    // capture for our own CameraX + OpenCV batch pipeline (app/src/foss) and
+    // is the flavor F-Droid / de-Googled devices get. Everything else —
+    // library, editing, OCR, exports, telemetry toggle — is shared main code.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+        }
+        create("foss") {
+            dimension = "distribution"
+            versionNameSuffix = "-foss"
+        }
+    }
+
     // Release signing: CI provides the keystore via env vars (see the release
     // workflow). Without ANDROID_RELEASE_KEYSTORE_BASE64 set, release builds
     // stay unsigned so local developers can still assemble; they usually just
@@ -86,6 +103,7 @@ fun telemetryConfigValue(name: String): String =
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -103,12 +121,23 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
 
-    implementation(libs.mlkit.document.scanner)
+    // Capture is flavor-specific: GMS scanner on play (no CAMERA permission),
+    // CameraX own pipeline on foss. OCR (bundled, offline) and everything else
+    // stay in main for both. Quoted configuration names: flavor accessors
+    // don't exist at script-compile time in the Kotlin DSL.
+    "playImplementation"(libs.mlkit.document.scanner)
+    "fossImplementation"(libs.androidx.camera.core)
+    "fossImplementation"(libs.androidx.camera.camera2)
+    "fossImplementation"(libs.androidx.camera.lifecycle)
+    "fossImplementation"(libs.androidx.camera.view)
     implementation(libs.mlkit.text.recognition)
     implementation(libs.pdfbox.android)
     implementation(libs.opencv)
 
     testImplementation(libs.junit)
+    // android.jar ships org.json as stubs that throw in local JVM tests; the
+    // real artifact provides the same API for the release-check parser tests.
+    testImplementation(libs.org.json)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

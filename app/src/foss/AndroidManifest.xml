@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      FOSS flavor only (docs/FEATURES.md product rule 3): this flavor captures
+      with our own CameraX pipeline (app/src/foss source set), so it — and only
+      it — declares CAMERA. The play flavor captures inside Google Play
+      services and stays zero-permission. camera.any is optional so the app
+      still installs (and gallery import still works) on camera-less devices.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+
+</manifest>
