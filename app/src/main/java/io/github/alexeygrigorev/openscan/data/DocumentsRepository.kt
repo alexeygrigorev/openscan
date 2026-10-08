@@ -57,6 +57,41 @@ class DocumentsRepository(
     suspend fun getPages(documentId: Long): List<PageEntity> = dao.getPages(documentId)
     suspend fun getPage(id: Long): PageEntity? = dao.getPage(id)
 
+    /**
+     * Imports an already-processed page (the foss batch capture saves the
+     * perspective-warped bitmap directly, skipping a decode/re-encode
+     * round trip). Same contract as [importPage]: [detected] only annotates
+     * the opt-in telemetry upload. [original], when given, is the unprocessed
+     * camera frame the bitmap was cropped from; it is kept next to the page
+     * (keyed by page id) so the crop can be redone or the capture shared for
+     * debugging later. Keeping it is best-effort: a failed copy never fails
+     * the import.
+     */
+    suspend fun importPageBitmap(
+        documentId: Long,
+        bitmap: android.graphics.Bitmap,
+        detected: Boolean = false,
+        original: java.io.File? = null,
+    ): PageEntity =
+        withContext(Dispatchers.IO) {
+            val position = dao.getPages(documentId).size
+            val file = files.pageFile(documentId)
+            io.github.alexeygrigorev.openscan.scan.Images.saveJpeg(bitmap, file)
+            feedbackUploader.maybeUpload(file, detected)
+            val page = PageEntity(
+                documentId = documentId,
+                position = position,
+                filePath = file.absolutePath,
+                createdAt = System.currentTimeMillis(),
+            )
+            val id = dao.insertPage(page)
+            original?.takeIf { it.exists() }?.let { source ->
+                runCatching { source.copyTo(files.originalFile(documentId, id), overwrite = false) }
+            }
+            dao.touchDocument(documentId, System.currentTimeMillis())
+            page.copy(id = id)
+        }
+
     suspend fun renameDocument(id: Long, title: String) {
         dao.renameDocument(id, title.trim().ifEmpty { defaultTitle() }, System.currentTimeMillis())
     }
@@ -69,6 +104,7 @@ class DocumentsRepository(
     suspend fun deletePage(page: PageEntity) {
         dao.deletePage(page.id)
         files.deletePageFile(page.filePath)
+        files.deleteOriginalFile(page.documentId, page.id)
         dao.touchDocument(page.documentId, System.currentTimeMillis())
     }
 

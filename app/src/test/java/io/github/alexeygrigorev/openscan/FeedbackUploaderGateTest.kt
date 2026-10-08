@@ -26,6 +26,9 @@ class FeedbackUploaderGateTest {
         override suspend fun setFeedbackUploadEnabled(enabled: Boolean) {
             state.value = enabled
         }
+
+        override val keepOriginalsEnabled: Flow<Boolean> = MutableStateFlow(true)
+        override suspend fun setKeepOriginalsEnabled(enabled: Boolean) = Unit
     }
 
     private class Recorder {

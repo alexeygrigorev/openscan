@@ -46,6 +46,13 @@ class SettingsViewModel(private val settings: SettingsRepository) : ViewModel() 
         viewModelScope.launch { settings.setFeedbackUploadEnabled(enabled) }
     }
 
+    /** Keep-originals toggle; StateFlow starts at true until DataStore loads. */
+    val keepOriginalsEnabled: StateFlow<Boolean> = settings.keepOriginalsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setKeepOriginalsEnabled(enabled: Boolean) {
+        viewModelScope.launch { settings.setKeepOriginalsEnabled(enabled) }
+    }
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -56,6 +63,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     val enabled by viewModel.feedbackUploadEnabled.collectAsState()
+    val keepOriginals by viewModel.keepOriginalsEnabled.collectAsState()
     val updateState by updateMonitor.state.collectAsState()
     val context = LocalContext.current
 
@@ -77,6 +85,18 @@ fun SettingsScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
+            Text("Capture", style = MaterialTheme.typography.titleMedium)
+
+            SettingSwitchRow(
+                title = "Save original photos",
+                description = "Keep the full camera frame next to each cropped page, so a " +
+                    "page can be re-cropped later or captures can be shared for " +
+                    "debugging. Roughly doubles the storage each page needs.",
+                checked = keepOriginals,
+                onCheckedChange = { viewModel.setKeepOriginalsEnabled(it) },
+                modifier = Modifier.padding(top = 8.dp),
+            )
+
             SettingSwitchRow(
                 title = "Send pictures to our servers so we can use them to improve our application",
                 description = "Off by default. Uploads happen only in the background and are used to " +
@@ -106,7 +126,7 @@ fun SettingsScreen(
     }
 }
 
-/** Toggle row: label + explanation, switch on the right. */
+/** Toggle row used by the Capture section: label + explanation, switch on the right. */
 @Composable
 private fun SettingSwitchRow(
     title: String,

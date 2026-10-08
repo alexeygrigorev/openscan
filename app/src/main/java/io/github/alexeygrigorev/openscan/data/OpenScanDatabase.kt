@@ -37,6 +37,19 @@ class DocumentFiles(context: Context) {
 
     fun pageFile(path: String): File = File(path)
 
+    /**
+     * The unprocessed camera frame a page was cropped from (foss batch
+     * capture, behind the keep-originals setting), keyed by page id. Lives
+     * inside the document dir so [deleteDocumentFiles] cleans it up with
+     * everything else.
+     */
+    fun originalFile(documentId: Long, pageId: Long): File =
+        File(File(documentDir(documentId), "originals").apply { mkdirs() }, "${pageId}.jpg")
+
+    fun deleteOriginalFile(documentId: Long, pageId: Long) {
+        File(documentDir(documentId), "originals/${pageId}.jpg").delete()
+    }
+
     fun documentDir(documentId: Long): File = File(documentsDir, documentId.toString())
 
     fun sharedPdfFile(title: String): File =
