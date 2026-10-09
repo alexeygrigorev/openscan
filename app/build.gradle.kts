@@ -80,6 +80,11 @@ android {
     val releaseKeystoreB64 = System.getenv("ANDROID_RELEASE_KEYSTORE_BASE64")
     if (releaseKeystoreB64 != null) {
         val keystoreFile = File(buildDir, "release-keystore.jks")
+        // writeBytes does not create parent directories; the foss-only
+        // workflow's assembleFossRelease is the first gradle invocation on a
+        // fresh CI runner, so app/build does not exist yet at configuration
+        // time (it used to be created by the now-removed debug-APK step).
+        keystoreFile.parentFile?.mkdirs()
         Base64.getDecoder().decode(releaseKeystoreB64).let { keystoreFile.writeBytes(it) }
         signingConfigs.create("release") {
             storeFile = keystoreFile
