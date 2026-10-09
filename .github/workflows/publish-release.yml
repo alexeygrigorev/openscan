@@ -182,7 +182,9 @@ jobs:
           got_code="$(printf '%s\n' "$badging" | grep -o "versionCode='[^']*'" | head -1 | cut -d"'" -f2)"
           got_name="$(printf '%s\n' "$badging" | grep -o "versionName='[^']*'" | head -1 | cut -d"'" -f2)"
           test "$got_code" = "$VERSION_CODE" || { echo "::error::APK versionCode is ${got_code}, expected ${VERSION_CODE}"; exit 1; }
-          test "$got_name" = "$VERSION_NAME" || { echo "::error::APK versionName is ${got_name}, expected ${VERSION_NAME}"; exit 1; }
+          # The foss flavor carries versionNameSuffix "-foss"
+          # (app/build.gradle.kts); the tag stays the version source of truth.
+          test "$got_name" = "${VERSION_NAME}-foss" || { echo "::error::APK versionName is ${got_name}, expected ${VERSION_NAME}-foss"; exit 1; }
           echo "release APK metadata OK (versionCode=${got_code} versionName=${got_name})"
         env:
           VERSION_CODE: ${{ steps.version.outputs.code }}

@@ -16,7 +16,11 @@ derives both Android version attributes from the `vX.Y.Z` tags:
 | `v0.1.1`    | `0.1.1`     | 2           |
 | `v0.2.0`    | `0.2.0`     | 3           |
 
-- `versionName` = the tag without its leading `v`.
+- `versionName` = the tag without its leading `v`. The published foss APK
+  appends the flavor suffix, so its user-visible versionName is
+  `X.Y.Z-foss` (`versionNameSuffix` in `app/build.gradle.kts`); the tag
+  remains the version source of truth and the update checker ignores the
+  suffix when comparing.
 - `versionCode` = 1 + the number of release tags strictly before it
   (semver-ascending). The first tag ships code 1; every later tag ships
   exactly one more, so codes never repeat and never skip.
