@@ -27,12 +27,15 @@ abstract class OpenScanDatabase : RoomDatabase() {
          */
         val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Plain nullable columns, no defaults: Room validates the
+                // migrated schema exactly against the entities, and any
+                // SQLite default would fail that validation.
                 db.execSQL("ALTER TABLE documents ADD COLUMN scanFilter TEXT")
                 db.execSQL("ALTER TABLE pages ADD COLUMN autoCorners TEXT")
                 db.execSQL("ALTER TABLE pages ADD COLUMN userCorners TEXT")
-                db.execSQL("ALTER TABLE pages ADD COLUMN cornerSchema INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE pages ADD COLUMN imageWidth INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE pages ADD COLUMN imageHeight INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE pages ADD COLUMN cornerSchema INTEGER")
+                db.execSQL("ALTER TABLE pages ADD COLUMN imageWidth INTEGER")
+                db.execSQL("ALTER TABLE pages ADD COLUMN imageHeight INTEGER")
                 db.execSQL("ALTER TABLE pages ADD COLUMN scanFilter TEXT")
                 db.execSQL(
                     """
@@ -44,12 +47,12 @@ abstract class OpenScanDatabase : RoomDatabase() {
                         contentType TEXT NOT NULL,
                         pageId INTEGER,
                         documentId INTEGER,
-                        detected INTEGER NOT NULL DEFAULT 0,
+                        detected INTEGER NOT NULL,
                         state TEXT NOT NULL,
-                        attempts INTEGER NOT NULL DEFAULT 0,
+                        attempts INTEGER NOT NULL,
                         lastError TEXT,
-                        createdAt INTEGER NOT NULL DEFAULT 0,
-                        updatedAt INTEGER NOT NULL DEFAULT 0
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
                     )
                     """.trimIndent(),
                 )
@@ -74,7 +77,7 @@ abstract class OpenScanDatabase : RoomDatabase() {
          */
         val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE pages ADD COLUMN needsCheck INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE pages ADD COLUMN needsCheck INTEGER")
             }
         }
     }

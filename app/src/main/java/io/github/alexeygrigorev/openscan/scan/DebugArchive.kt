@@ -27,15 +27,15 @@ object DebugArchive {
         /** Raw camera frame, or null when not kept. */
         val rawFile: File?,
         /** Quad coordinate-space dims (frame size when corners are known). */
-        val imageWidth: Int,
-        val imageHeight: Int,
+        val imageWidth: Int?,
+        val imageHeight: Int?,
         /** Stored page dims (0 when unknown). */
         val storedWidth: Int,
         val storedHeight: Int,
         val autoCorners: FloatArray?,
         val refinedCorners: FloatArray?,
         val userCorners: FloatArray?,
-        val cornerSchema: Int,
+        val cornerSchema: Int?,
         val filterId: String?,
     )
 
@@ -88,11 +88,11 @@ object DebugArchive {
                     .put("position", entry.position)
                     .put("file", pageEntryName(entry.position))
                     .put("rawFile", entry.rawFile?.takeIf { it.exists() }?.let { rawEntryName(entry.position) } ?: JSONObject.NULL)
-                    .put("imageWidth", entry.imageWidth)
-                    .put("imageHeight", entry.imageHeight)
+                    .put("imageWidth", entry.imageWidth ?: 0)
+                    .put("imageHeight", entry.imageHeight ?: 0)
                     .put("storedWidth", entry.storedWidth)
                     .put("storedHeight", entry.storedHeight)
-                    .put("cornerSchema", entry.cornerSchema)
+                    .put("cornerSchema", entry.cornerSchema ?: 0)
                     .put("autoCorners", quadOrNull(entry.autoCorners))
                     .put("refinedCorners", quadOrNull(entry.refinedCorners))
                     .put("userCorners", quadOrNull(entry.userCorners))

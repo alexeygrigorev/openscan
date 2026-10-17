@@ -48,17 +48,19 @@ data class PageEntity(
      * and the final user-corrected corners ([userCorners], null when the user
      * never touched the quad), each a JSON array of 8 numbers (TL, TR, BR, BL)
      * or null when unknown (gallery imports, legacy rows, rotated pages).
-     * [cornerSchema] is the [PageCorners.SCHEMA_VERSION] that wrote them;
-     * 0 means "no corner data" (every pre-v2 row). [imageWidth]/[imageHeight]
+     * [cornerSchema] is the [PageCorners.SCHEMA_VERSION] that wrote them, or
+     * null for "no corner data" (every pre-v2 row). [imageWidth]/[imageHeight]
      * are the dimensions of the coordinate space the corners live in — the
-     * capture frame when quads are present, the stored page otherwise.
+     * capture frame when quads are present, the stored page otherwise — or
+     * null when unknown. All nullable so the v1→v2 migration adds plain
+     * columns with no defaults (Room validates migrated schemas exactly).
      */
     val autoCorners: String? = null,
     val refinedCorners: String? = null,
     val userCorners: String? = null,
-    val cornerSchema: Int = 0,
-    val imageWidth: Int = 0,
-    val imageHeight: Int = 0,
+    val cornerSchema: Int? = null,
+    val imageWidth: Int? = null,
+    val imageHeight: Int? = null,
     /**
      * Per-page enhancement filter override ([ScanFilter.id]), or null to use
      * the document filter / app default.
@@ -67,9 +69,10 @@ data class PageEntity(
     /**
      * Detection flagged this page's crop (item 8b/11): the user should review
      * it. Set by post-capture refinement and re-detect, cleared by manual
-     * edits, rotation and plausible re-detects. Default false (all pre-v4 rows).
+     * edits, rotation and plausible re-detects. Null (all pre-v4 rows) reads
+     * as unflagged. Nullable so the migration adds a plain column.
      */
-    val needsCheck: Boolean = false,
+    val needsCheck: Boolean? = null,
 )
 
 /** Library row: a document plus its page count. */
@@ -86,7 +89,10 @@ data class DocumentSummary(
  * server-side object name (fixed at enqueue time so retries don't duplicate);
  * [contentType] goes on the PUT; [state] is one of [UploadState] ids.
  */
-@Entity(tableName = "uploads")
+@Entity(
+    tableName = "uploads",
+    indices = [Index(value = ["state"], name = "index_uploads_state")],
+)
 data class UploadEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val kind: String,

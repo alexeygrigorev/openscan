@@ -61,8 +61,8 @@ class DocumentsRepository(
             refinedCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(refinedCorners),
             userCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(userCorners),
             cornerSchema = cornerSchemaFor(autoCorners, refinedCorners, userCorners),
-            imageWidth = imageWidth,
-            imageHeight = imageHeight,
+            imageWidth = imageWidth.takeIf { hasCorners(autoCorners, refinedCorners, userCorners) },
+            imageHeight = imageHeight.takeIf { hasCorners(autoCorners, refinedCorners, userCorners) },
         )
         val id = dao.insertPage(page)
         dao.touchDocument(documentId, System.currentTimeMillis())
@@ -121,8 +121,8 @@ class DocumentsRepository(
                 refinedCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(refinedCorners),
                 userCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(userCorners),
                 cornerSchema = cornerSchemaFor(autoCorners, refinedCorners, userCorners),
-                imageWidth = imageWidth,
-                imageHeight = imageHeight,
+                imageWidth = imageWidth.takeIf { hasCorners(autoCorners, refinedCorners, userCorners) },
+                imageHeight = imageHeight.takeIf { hasCorners(autoCorners, refinedCorners, userCorners) },
             )
             val id = dao.insertPage(page)
             original?.takeIf { it.exists() }?.let { source ->
@@ -240,7 +240,7 @@ class DocumentsRepository(
         if (rotated !== bitmap) bitmap.recycle()
         rotated.recycle()
         dao.setPageFile(page.id, dest.absolutePath)
-        dao.setPageCorners(page.id, null, null, null, 0, rotatedWidth, rotatedHeight)
+        dao.setPageCorners(page.id, null, null, null, null, rotatedWidth, rotatedHeight)
         dao.setNeedsCheck(page.id, false)
         files.deletePageFile(page.filePath)
         dao.touchDocument(page.documentId, System.currentTimeMillis())
@@ -250,12 +250,15 @@ class DocumentsRepository(
         fun defaultTitle(): String =
             SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date())
 
-        /** Schema marker for the stored corner triple: 0 when all three are null. */
-        fun cornerSchemaFor(vararg quads: FloatArray?): Int =
+        /** Schema marker for the stored corner triple: null when all three are null. */
+        private fun hasCorners(vararg quads: FloatArray?): Boolean = quads.any { it != null }
+
+        /** Corner-format version marker: null when there is nothing to version. */
+        fun cornerSchemaFor(vararg quads: FloatArray?): Int? =
             if (quads.any { it != null }) {
                 io.github.alexeygrigorev.openscan.scan.PageCorners.SCHEMA_VERSION
             } else {
-                0
+                null
             }
     }
 

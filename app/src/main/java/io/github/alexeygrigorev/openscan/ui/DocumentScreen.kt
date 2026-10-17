@@ -743,7 +743,7 @@ private fun PageRow(
             PageThumbnail(
                 filePath = page.filePath,
                 filter = filter,
-                showCheck = page.needsCheck,
+                showCheck = page.needsCheck == true,
                 modifier = Modifier
                     .width(72.dp)
                     .height(56.dp),

@@ -75,9 +75,9 @@ interface OpenScanDao {
         auto: String?,
         refined: String?,
         user: String?,
-        schema: Int,
-        width: Int,
-        height: Int,
+        schema: Int?,
+        width: Int?,
+        height: Int?,
     )
 
     @Query("UPDATE pages SET scanFilter = :filter WHERE id = :id")

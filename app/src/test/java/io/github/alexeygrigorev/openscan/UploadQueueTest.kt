@@ -62,7 +62,7 @@ class UploadQueueTest {
         override suspend fun getPages(documentId: Long): List<PageEntity> = emptyList()
         override suspend fun getPage(id: Long): PageEntity? = null
         override suspend fun setPageFile(id: Long, filePath: String) = Unit
-        override suspend fun setPageCorners(id: Long, auto: String?, refined: String?, user: String?, schema: Int, width: Int, height: Int) = Unit
+        override suspend fun setPageCorners(id: Long, auto: String?, refined: String?, user: String?, schema: Int?, width: Int?, height: Int?) = Unit
         override suspend fun setPageFilter(id: Long, filter: String?) = Unit
         override suspend fun setNeedsCheck(id: Long, flag: Boolean) = Unit
         override suspend fun setDocumentFilter(id: Long, filter: String?) = Unit
