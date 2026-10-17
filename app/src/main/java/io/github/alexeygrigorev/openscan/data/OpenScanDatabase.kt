@@ -12,7 +12,7 @@ import java.io.File
 
 @Database(
     entities = [DocumentEntity::class, PageEntity::class, UploadEntry::class],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class OpenScanDatabase : RoomDatabase() {
@@ -64,6 +64,17 @@ abstract class OpenScanDatabase : RoomDatabase() {
         val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE pages ADD COLUMN refinedCorners TEXT")
+            }
+        }
+
+        /**
+         * v3 → v4 (feedback v0.2.4, item 11): the needs-check flag for
+         * refinement/re-detect review. NOT NULL DEFAULT 0 keeps old rows
+         * unflagged.
+         */
+        val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE pages ADD COLUMN needsCheck INTEGER NOT NULL DEFAULT 0")
             }
         }
     }
@@ -128,7 +139,11 @@ class AppContainer(context: Context) {
 
     val database: OpenScanDatabase =
         Room.databaseBuilder(appContext, OpenScanDatabase::class.java, "openscan.db")
-            .addMigrations(OpenScanDatabase.MIGRATION_1_2, OpenScanDatabase.MIGRATION_2_3)
+            .addMigrations(
+                OpenScanDatabase.MIGRATION_1_2,
+                OpenScanDatabase.MIGRATION_2_3,
+                OpenScanDatabase.MIGRATION_3_4,
+            )
             .build()
 
     val files = DocumentFiles(appContext)

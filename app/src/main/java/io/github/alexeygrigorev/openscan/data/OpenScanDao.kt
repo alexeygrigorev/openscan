@@ -83,6 +83,9 @@ interface OpenScanDao {
     @Query("UPDATE pages SET scanFilter = :filter WHERE id = :id")
     suspend fun setPageFilter(id: Long, filter: String?)
 
+    @Query("UPDATE pages SET needsCheck = :flag WHERE id = :id")
+    suspend fun setNeedsCheck(id: Long, flag: Boolean)
+
     @Query("UPDATE documents SET scanFilter = :filter WHERE id = :id")
     suspend fun setDocumentFilter(id: Long, filter: String?)
 

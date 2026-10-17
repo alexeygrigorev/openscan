@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "feedback-eval manifest (item 12): case IDs + corner annotations, no images",
+  "type": "object",
+  "required": ["images"],
+  "properties": {
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "doc"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Photo file name under the private photos/ dir (the case ID)."
+          },
+          "doc": {
+            "type": "string",
+            "description": "Batch/document group, e.g. 2026-10-17-1430 for the 14:30 Berlin batch."
+          },
+          "truth": {
+            "type": "array",
+            "minItems": 8,
+            "maxItems": 8,
+            "items": {"type": "number"},
+            "description": "Hand-verified corners TL,TR,BR,BL in full-res source pixels. Omit until annotated; for v0.2.4+ uploads seed from the sidecar userCorners/refinedCorners."
+          }
+        }
+      }
+    }
+  }
+}

@@ -241,6 +241,7 @@ class DocumentsRepository(
         rotated.recycle()
         dao.setPageFile(page.id, dest.absolutePath)
         dao.setPageCorners(page.id, null, null, null, 0, rotatedWidth, rotatedHeight)
+        dao.setNeedsCheck(page.id, false)
         files.deletePageFile(page.filePath)
         dao.touchDocument(page.documentId, System.currentTimeMillis())
     }
@@ -256,5 +257,101 @@ class DocumentsRepository(
             } else {
                 0
             }
+    }
+
+    /** Outcome of a single-page re-detect (item 11). */
+    data class RedetectOutcome(
+        val cropChanged: Boolean,
+        val needsCheck: Boolean,
+        val usedStoredPage: Boolean,
+    )
+
+    /** Outcome of a whole-document re-detect (item 11). */
+    data class RedetectSummary(
+        val attempted: Int,
+        val cropsChanged: Int,
+        val flagged: Int,
+        val failed: Int,
+        val usedStoredPage: Int,
+    )
+
+    /**
+     * Re-runs the current detection + refinement over a saved page (item 11):
+     * over the kept original frame when present, otherwise over the stored
+     * page itself (older versions, play flavor, gallery imports and
+     * keep-originals-off rows have no originals). Re-warps on a genuine
+     * plausible crop, otherwise keeps the crop and records the fresh corners.
+     * Never throws: failures surface as [RedetectOutcome] via exception —
+     * callers show them, nothing is half-written.
+     */
+    suspend fun redetectPage(pageId: Long): RedetectOutcome = withContext(Dispatchers.IO) {
+        val page = dao.getPage(pageId) ?: error("Page not found")
+        val original = files.originalFile(page.documentId, pageId).takeIf { it.exists() }
+        val sourceFile = original ?: java.io.File(page.filePath)
+        val source = io.github.alexeygrigorev.openscan.scan.Images.decodeScaled(
+            sourceFile, io.github.alexeygrigorev.openscan.scan.PageRedetect.REDETECT_MAX_DIM
+        ) ?: error("Cannot decode page image")
+        try {
+            val result = io.github.alexeygrigorev.openscan.scan.PageRedetect.redetect(source)
+            val warped = result.bitmap
+            if (warped != null) {
+                val dest = files.pageFile(page.documentId)
+                io.github.alexeygrigorev.openscan.scan.Images.saveJpeg(warped, dest)
+                if (warped !== source) warped.recycle()
+                source.recycle()
+                dao.setPageFile(pageId, dest.absolutePath)
+                files.deletePageFile(page.filePath)
+            } else {
+                source.recycle()
+            }
+            dao.setPageCorners(
+                id = pageId,
+                auto = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(result.auto),
+                refined = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(result.refined),
+                user = null,
+                schema = cornerSchemaFor(result.auto, result.refined, null),
+                width = result.width,
+                height = result.height,
+            )
+            dao.setNeedsCheck(pageId, result.needsCheck)
+            RedetectOutcome(
+                cropChanged = result.cropChanged,
+                needsCheck = result.needsCheck,
+                usedStoredPage = original == null,
+            )
+        } catch (t: Throwable) {
+            runCatching { source.recycle() }
+            throw t
+        }
+    }
+
+    /**
+     * Re-detects every page of a document (item 11). Pages decode or fail
+     * independently: one bad file never aborts the rest.
+     */
+    suspend fun redetectDocument(documentId: Long): RedetectSummary = withContext(Dispatchers.IO) {
+        val pages = dao.getPages(documentId)
+        var changed = 0
+        var flagged = 0
+        var failed = 0
+        var stored = 0
+        for (page in pages) {
+            try {
+                val outcome = redetectPage(page.id)
+                if (outcome.cropChanged) changed++
+                if (outcome.needsCheck) flagged++
+                if (outcome.usedStoredPage) stored++
+            } catch (_: Throwable) {
+                failed++
+            }
+        }
+        dao.touchDocument(documentId, System.currentTimeMillis())
+        RedetectSummary(
+            attempted = pages.size,
+            cropsChanged = changed,
+            flagged = flagged,
+            failed = failed,
+            usedStoredPage = stored,
+        )
     }
 }

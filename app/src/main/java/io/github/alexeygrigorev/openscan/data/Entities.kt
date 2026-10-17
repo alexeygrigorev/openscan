@@ -64,6 +64,12 @@ data class PageEntity(
      * the document filter / app default.
      */
     @ColumnInfo(name = "scanFilter") val filter: String? = null,
+    /**
+     * Detection flagged this page's crop (item 8b/11): the user should review
+     * it. Set by post-capture refinement and re-detect, cleared by manual
+     * edits, rotation and plausible re-detects. Default false (all pre-v4 rows).
+     */
+    val needsCheck: Boolean = false,
 )
 
 /** Library row: a document plus its page count. */

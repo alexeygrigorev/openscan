@@ -3,6 +3,8 @@ package io.github.alexeygrigorev.openscan.ui
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -55,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -220,6 +223,34 @@ class DocumentViewModel(
         viewModelScope.launch {
             repository.setDocumentFilter(documentId, filterId)
             if (filterId != null) settings.setFilterDefault(filterId)
+        }
+    }
+
+    /** Re-detects every page over the kept originals (item 11). */
+    fun redetectDocument() {
+        if (exporting.value) return
+        exporting.value = true
+        exportError.value = null
+        viewModelScope.launch {
+            try {
+                val summary = withContext(Dispatchers.IO) {
+                    repository.redetectDocument(documentId)
+                }
+                notice.value = buildString {
+                    append("Re-detected ${summary.attempted} page${if (summary.attempted == 1) "" else "s"}")
+                    append(": ${summary.cropsChanged} new crop${if (summary.cropsChanged == 1) "" else "s"}")
+                    if (summary.flagged > 0) append(", ${summary.flagged} flagged — open pages to review")
+                    if (summary.failed > 0) append(", ${summary.failed} failed")
+                    if (summary.usedStoredPage > 0) {
+                        append(". ${summary.usedStoredPage} without kept originals used stored pages")
+                    }
+                    append(".")
+                }
+            } catch (t: Throwable) {
+                exportError.value = t.message ?: "Re-detect failed"
+            } finally {
+                exporting.value = false
+            }
         }
     }
 
@@ -466,6 +497,14 @@ fun DocumentScreen(
                                     text = { Text("Rename") },
                                     onClick = { menuOpen = false; renaming = true },
                                 )
+                                DropdownMenuItem(
+                                    text = { Text("Re-detect corners") },
+                                    onClick = {
+                                        menuOpen = false
+                                        viewModel.redetectDocument()
+                                    },
+                                    enabled = !exporting && pages.isNotEmpty(),
+                                )
                                 if (developerMode) {
                                     DropdownMenuItem(
                                         text = { Text("Export debug archive") },
@@ -704,6 +743,7 @@ private fun PageRow(
             PageThumbnail(
                 filePath = page.filePath,
                 filter = filter,
+                showCheck = page.needsCheck,
                 modifier = Modifier
                     .width(72.dp)
                     .height(56.dp),
@@ -740,7 +780,12 @@ private fun PageRow(
 }
 
 @Composable
-private fun PageThumbnail(filePath: String, filter: ScanFilter, modifier: Modifier = Modifier) {
+private fun PageThumbnail(
+    filePath: String,
+    filter: ScanFilter,
+    showCheck: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val bitmap by produceState<Bitmap?>(initialValue = null, key1 = filePath, key2 = filter) {
         value = withContext(Dispatchers.IO) {
             val decoded = Images.decodeScaled(File(filePath), maxDim = 512) ?: return@withContext null
@@ -753,12 +798,29 @@ private fun PageThumbnail(filePath: String, filter: ScanFilter, modifier: Modifi
     }
     val current = bitmap
     if (current != null) {
-        Image(
-            bitmap = current.asImageBitmap(),
-            contentDescription = null,
-            modifier = modifier,
-            contentScale = ContentScale.Crop,
-        )
+        Box(modifier = modifier) {
+            Image(
+                bitmap = current.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            if (showCheck) {
+                Text(
+                    "check crop",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFFFD60A),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(2.dp)
+                        .background(
+                            Color.Black.copy(alpha = 0.7f),
+                            RoundedCornerShape(4.dp),
+                        )
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            }
+        }
     } else {
         Box(modifier = modifier) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))

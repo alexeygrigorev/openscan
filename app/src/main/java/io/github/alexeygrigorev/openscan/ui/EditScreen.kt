@@ -4,12 +4,15 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
@@ -17,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -64,6 +68,11 @@ class EditViewModel(
     val page = MutableStateFlow<PageEntity?>(null)
     val busy = MutableStateFlow(false)
     val ocrText = MutableStateFlow<String?>(null)
+
+    /** Re-detect in flight / last outcome (item 11). */
+    val redetecting = MutableStateFlow(false)
+    val redetectResult = MutableStateFlow<DocumentsRepository.RedetectOutcome?>(null)
+    val redetectError = MutableStateFlow<String?>(null)
 
     /** Owning document's filter (page default when the page has no override). */
     val documentFilter: StateFlow<String?> = MutableStateFlow(null)
@@ -127,6 +136,28 @@ class EditViewModel(
             page.value = repository.getPage(pageId)
         }
     }
+
+    /** Re-runs detection + refinement over the kept original (item 11). */
+    fun redetect() {
+        if (busy.value || redetecting.value) return
+        redetecting.value = true
+        redetectError.value = null
+        viewModelScope.launch {
+            try {
+                redetectResult.value = repository.redetectPage(pageId)
+                page.value = repository.getPage(pageId)
+            } catch (t: Throwable) {
+                redetectError.value = t.message ?: "Re-detect failed"
+            } finally {
+                redetecting.value = false
+            }
+        }
+    }
+
+    fun dismissRedetect() {
+        redetectResult.value = null
+        redetectError.value = null
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -137,6 +168,9 @@ fun EditScreen(viewModel: EditViewModel, onBack: () -> Unit) {
     val ocrText by viewModel.ocrText.collectAsState()
     val docFilter by viewModel.documentFilter.collectAsState()
     val appDefault by viewModel.appFilterDefault.collectAsState()
+    val redetecting by viewModel.redetecting.collectAsState()
+    val redetectResult by viewModel.redetectResult.collectAsState()
+    val redetectError by viewModel.redetectError.collectAsState()
     var confirmingDelete by remember { mutableStateOf(false) }
     var filterPickerOpen by remember { mutableStateOf(false) }
     val effective = ScanFilter.effective(page?.filter, docFilter, appDefault)
@@ -154,6 +188,9 @@ fun EditScreen(viewModel: EditViewModel, onBack: () -> Unit) {
                     IconButton(onClick = { filterPickerOpen = true }) {
                         Icon(Icons.Filled.Tune, contentDescription = "Enhancement: ${effective.title}")
                     }
+                    IconButton(onClick = { viewModel.redetect() }, enabled = !busy && !redetecting) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Re-detect corners")
+                    }
                     IconButton(onClick = { viewModel.rotate() }, enabled = !busy) {
                         Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate 90 degrees")
                     }
@@ -168,20 +205,44 @@ fun EditScreen(viewModel: EditViewModel, onBack: () -> Unit) {
         },
     ) { padding ->
         val current = page
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentAlignment = Alignment.Center,
         ) {
-            if (current == null) {
-                CircularProgressIndicator()
-            } else {
-                PageCanvas(
-                    filePath = current.filePath,
-                    filter = effective,
-                    modifier = Modifier.fillMaxSize(),
+            // Flagged crops (item 8b/11) ask for review right here.
+            if (current?.needsCheck == true) {
+                Text(
+                    "Detection flagged this crop — review it, adjust, or re-detect.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+            }
+            if (redetecting) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "Re-detecting…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(8.dp),
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (current == null) {
+                    CircularProgressIndicator()
+                } else {
+                    PageCanvas(
+                        filePath = current.filePath,
+                        filter = effective,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }
@@ -193,6 +254,41 @@ fun EditScreen(viewModel: EditViewModel, onBack: () -> Unit) {
             defaultLabel = ScanFilter.effective(null, docFilter, appDefault).title,
             onPick = { id -> viewModel.setPageFilter(id) },
             onDismiss = { filterPickerOpen = false },
+        )
+    }
+
+    redetectResult?.let { outcome ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissRedetect() },
+            title = { Text("Corners re-detected") },
+            text = {
+                Text(
+                    buildString {
+                        append(
+                            if (outcome.cropChanged) "Crop updated from the kept photo."
+                            else "No better crop found — kept as is."
+                        )
+                        if (outcome.needsCheck) append(" Review the crop above.")
+                        if (outcome.usedStoredPage) {
+                            append(" No original was kept for this page, so detection ran on the stored page.")
+                        }
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissRedetect() }) { Text("OK") }
+            },
+        )
+    }
+
+    redetectError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissRedetect() },
+            title = { Text("Re-detect failed") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissRedetect() }) { Text("OK") }
+            },
         )
     }
 
