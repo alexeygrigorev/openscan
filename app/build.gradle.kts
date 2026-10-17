@@ -93,9 +93,14 @@ android {
             keyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
             // Sideloaded updates must install over every shipped release:
             // sign with v1 (JAR) AND v2 so the APK carries META-INF
-            // signatures as well as the v2 block. Same stable key,
-            // additive schemes — existing installs update without an
-            // uninstall.
+            // signatures as well as the v2 block. AGP 8 computes the
+            // effective v1 flag from `enableV1Signing` (defaulting v1 off
+            // when minSdk >= 24, as here) and ignores the legacy
+            // `isV1SigningEnabled` for APK signing — so the new flag is
+            // the one that matters (verified against AGP 8.13.2
+            // SigningConfigImpl bytecode). Same stable key, additive
+            // schemes — existing installs update without an uninstall.
+            enableV1Signing = true
             isV1SigningEnabled = true
             isV2SigningEnabled = true
         }
