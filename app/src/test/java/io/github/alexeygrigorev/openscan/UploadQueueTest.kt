@@ -60,7 +60,7 @@ class UploadQueueTest {
         override suspend fun getPages(documentId: Long): List<PageEntity> = emptyList()
         override suspend fun getPage(id: Long): PageEntity? = null
         override suspend fun setPageFile(id: Long, filePath: String) = Unit
-        override suspend fun setPageCorners(id: Long, auto: String?, user: String?, schema: Int, width: Int, height: Int) = Unit
+        override suspend fun setPageCorners(id: Long, auto: String?, refined: String?, user: String?, schema: Int, width: Int, height: Int) = Unit
         override suspend fun setPageFilter(id: Long, filter: String?) = Unit
         override suspend fun setDocumentFilter(id: Long, filter: String?) = Unit
         override suspend fun updatePages(pages: List<PageEntity>) = Unit
@@ -136,6 +136,7 @@ class UploadQueueTest {
         h.uploader.enqueuePage(
             pageJpeg = pageFile(), detected = true,
             autoCorners = floatArrayOf(1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f),
+            refinedCorners = null,
             userCorners = null, imageWidth = 100, imageHeight = 200, filterId = null,
             autoDrain = false,
         )
@@ -155,7 +156,7 @@ class UploadQueueTest {
         val h = harness(enabled = false)
         h.uploader.enqueuePage(
             pageJpeg = pageFile(), detected = true,
-            autoCorners = null, userCorners = null, imageWidth = 0, imageHeight = 0, filterId = null,
+            autoCorners = null, refinedCorners = null, userCorners = null, imageWidth = 0, imageHeight = 0, filterId = null,
             autoDrain = false,
         )
         h.uploader.drainNow(ignoreBackoff = true)
@@ -172,7 +173,7 @@ class UploadQueueTest {
         val file = pageFile()
         h.uploader.enqueuePage(
             pageJpeg = file, detected = false,
-            autoCorners = null, userCorners = null, imageWidth = 0, imageHeight = 0, filterId = null,
+            autoCorners = null, refinedCorners = null, userCorners = null, imageWidth = 0, imageHeight = 0, filterId = null,
             autoDrain = false,
         )
         h.uploader.drainNow(ignoreBackoff = true)
@@ -194,7 +195,7 @@ class UploadQueueTest {
         h.failWith.add(java.io.IOException("boom"))
         h.uploader.enqueuePage(
             pageJpeg = pageFile(), detected = true,
-            autoCorners = null, userCorners = null, imageWidth = 0, imageHeight = 0, filterId = null,
+            autoCorners = null, refinedCorners = null, userCorners = null, imageWidth = 0, imageHeight = 0, filterId = null,
             autoDrain = false,
         )
         h.uploader.drainNow(ignoreBackoff = true)
@@ -212,7 +213,7 @@ class UploadQueueTest {
         val gone = File(tmp.root, "gone.jpg")
         h.uploader.enqueuePage(
             pageJpeg = gone, detected = true,
-            autoCorners = null, userCorners = null, imageWidth = 0, imageHeight = 0, filterId = null,
+            autoCorners = null, refinedCorners = null, userCorners = null, imageWidth = 0, imageHeight = 0, filterId = null,
         )
         assertTrue(h.dao.uploads.isEmpty())
         assertEquals(0, h.puts.size)

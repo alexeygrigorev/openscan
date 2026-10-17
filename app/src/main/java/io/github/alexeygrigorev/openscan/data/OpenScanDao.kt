@@ -61,18 +61,19 @@ interface OpenScanDao {
     @Query("UPDATE pages SET filePath = :filePath WHERE id = :id")
     suspend fun setPageFile(id: Long, filePath: String)
 
-    /** Persists the training/eval corner pair for a page (item 5). */
+    /** Persists the training/eval corner triple for a page (items 5+8). */
     @Query(
         """
         UPDATE pages
-        SET autoCorners = :auto, userCorners = :user, cornerSchema = :schema,
-            imageWidth = :width, imageHeight = :height
+        SET autoCorners = :auto, refinedCorners = :refined, userCorners = :user,
+            cornerSchema = :schema, imageWidth = :width, imageHeight = :height
         WHERE id = :id
         """
     )
     suspend fun setPageCorners(
         id: Long,
         auto: String?,
+        refined: String?,
         user: String?,
         schema: Int,
         width: Int,

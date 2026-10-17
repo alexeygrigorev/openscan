@@ -99,6 +99,7 @@ class FeedbackUploader(
         pageJpeg: File,
         detected: Boolean,
         autoCorners: FloatArray?,
+        refinedCorners: FloatArray?,
         userCorners: FloatArray?,
         imageWidth: Int,
         imageHeight: Int,
@@ -135,6 +136,7 @@ class FeedbackUploader(
                 UploadPayloads.sidecarJson(
                     appVersion = appVersion,
                     autoCorners = autoCorners,
+                    refinedCorners = refinedCorners,
                     userCorners = userCorners,
                     imageWidth = imageWidth,
                     imageHeight = imageHeight,

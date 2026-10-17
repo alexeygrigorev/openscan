@@ -43,16 +43,18 @@ data class PageEntity(
     val filePath: String,
     val createdAt: Long,
     /**
-     * Training/eval corner pairs (item 5): the detector's corners at capture
-     * time ([autoCorners]) and the final user-corrected corners
-     * ([userCorners]), each a JSON array of 8 numbers (TL, TR, BR, BL) or
-     * null when unknown (gallery imports, legacy rows, rotated pages).
+     * Training/eval corner triple (items 5+8): the live detector's corners at
+     * capture time ([autoCorners]), the post-capture refinement ([refinedCorners]),
+     * and the final user-corrected corners ([userCorners], null when the user
+     * never touched the quad), each a JSON array of 8 numbers (TL, TR, BR, BL)
+     * or null when unknown (gallery imports, legacy rows, rotated pages).
      * [cornerSchema] is the [PageCorners.SCHEMA_VERSION] that wrote them;
      * 0 means "no corner data" (every pre-v2 row). [imageWidth]/[imageHeight]
      * are the dimensions of the coordinate space the corners live in — the
      * capture frame when quads are present, the stored page otherwise.
      */
     val autoCorners: String? = null,
+    val refinedCorners: String? = null,
     val userCorners: String? = null,
     val cornerSchema: Int = 0,
     val imageWidth: Int = 0,

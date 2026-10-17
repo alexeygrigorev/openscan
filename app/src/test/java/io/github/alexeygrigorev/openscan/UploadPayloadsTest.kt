@@ -16,6 +16,7 @@ class UploadPayloadsTest {
             UploadPayloads.sidecarJson(
                 appVersion = "0.2.4-foss",
                 autoCorners = auto,
+                refinedCorners = auto,
                 userCorners = user,
                 imageWidth = 1200,
                 imageHeight = 1600,
@@ -32,6 +33,7 @@ class UploadPayloadsTest {
         assertEquals("document", json.getString("filter"))
         assertEquals(8, json.getJSONArray("autoCorners").length())
         assertEquals(1.0, json.getJSONArray("autoCorners").getDouble(0), 0.001)
+        assertEquals(8, json.getJSONArray("refinedCorners").length())
         assertEquals(8, json.getJSONArray("userCorners").length())
     }
 
@@ -41,6 +43,7 @@ class UploadPayloadsTest {
             UploadPayloads.sidecarJson(
                 appVersion = "0.2.4-foss",
                 autoCorners = null,
+                refinedCorners = null,
                 userCorners = null,
                 imageWidth = 0,
                 imageHeight = 0,

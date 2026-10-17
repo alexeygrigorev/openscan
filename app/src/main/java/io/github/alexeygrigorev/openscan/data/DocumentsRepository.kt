@@ -35,15 +35,16 @@ class DocumentsRepository(
      * Imports one page. [detected] marks scanner captures whose document
      * bounds were detected on-device (gallery imports are "manual"); it only
      * annotates the opt-in telemetry upload, never the import itself.
-     * [autoCorners]/[userCorners] are the training/eval corner pair in stored
-     * page coordinates (null when unknown); [imageWidth]/[imageHeight] are the
-     * stored page's pixel dimensions.
+     * [autoCorners]/[refinedCorners]/[userCorners] are the training/eval
+     * corner triple in the [imageWidth]×[imageHeight] coordinate space
+     * (nulls when unknown); dims are 0 when unknown.
      */
     suspend fun importPage(
         documentId: Long,
         source: Uri,
         detected: Boolean = false,
         autoCorners: FloatArray? = null,
+        refinedCorners: FloatArray? = null,
         userCorners: FloatArray? = null,
         imageWidth: Int = 0,
         imageHeight: Int = 0,
@@ -57,12 +58,9 @@ class DocumentsRepository(
             filePath = file.absolutePath,
             createdAt = System.currentTimeMillis(),
             autoCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(autoCorners),
+            refinedCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(refinedCorners),
             userCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(userCorners),
-            cornerSchema = if (autoCorners != null || userCorners != null) {
-                io.github.alexeygrigorev.openscan.scan.PageCorners.SCHEMA_VERSION
-            } else {
-                0
-            },
+            cornerSchema = cornerSchemaFor(autoCorners, refinedCorners, userCorners),
             imageWidth = imageWidth,
             imageHeight = imageHeight,
         )
@@ -74,6 +72,7 @@ class DocumentsRepository(
             pageJpeg = file,
             detected = detected,
             autoCorners = autoCorners,
+            refinedCorners = refinedCorners,
             userCorners = userCorners,
             imageWidth = imageWidth,
             imageHeight = imageHeight,
@@ -104,6 +103,7 @@ class DocumentsRepository(
         detected: Boolean = false,
         original: java.io.File? = null,
         autoCorners: FloatArray? = null,
+        refinedCorners: FloatArray? = null,
         userCorners: FloatArray? = null,
         imageWidth: Int = 0,
         imageHeight: Int = 0,
@@ -118,12 +118,9 @@ class DocumentsRepository(
                 filePath = file.absolutePath,
                 createdAt = System.currentTimeMillis(),
                 autoCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(autoCorners),
+                refinedCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(refinedCorners),
                 userCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(userCorners),
-                cornerSchema = if (autoCorners != null || userCorners != null) {
-                    io.github.alexeygrigorev.openscan.scan.PageCorners.SCHEMA_VERSION
-                } else {
-                    0
-                },
+                cornerSchema = cornerSchemaFor(autoCorners, refinedCorners, userCorners),
                 imageWidth = imageWidth,
                 imageHeight = imageHeight,
             )
@@ -138,6 +135,7 @@ class DocumentsRepository(
                 pageJpeg = file,
                 detected = detected,
                 autoCorners = autoCorners,
+                refinedCorners = refinedCorners,
                 userCorners = userCorners,
                 imageWidth = imageWidth,
                 imageHeight = imageHeight,
@@ -148,10 +146,11 @@ class DocumentsRepository(
             page.copy(id = id)
         }
 
-    /** Updates the stored corner pair for a page (re-crop / re-edit). */
+    /** Updates the stored corner triple for a page (re-crop / re-edit). */
     suspend fun setPageCorners(
         pageId: Long,
         autoCorners: FloatArray?,
+        refinedCorners: FloatArray?,
         userCorners: FloatArray?,
         imageWidth: Int,
         imageHeight: Int,
@@ -159,12 +158,9 @@ class DocumentsRepository(
         dao.setPageCorners(
             id = pageId,
             auto = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(autoCorners),
+            refined = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(refinedCorners),
             user = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(userCorners),
-            schema = if (autoCorners != null || userCorners != null) {
-                io.github.alexeygrigorev.openscan.scan.PageCorners.SCHEMA_VERSION
-            } else {
-                0
-            },
+            schema = cornerSchemaFor(autoCorners, refinedCorners, userCorners),
             width = imageWidth,
             height = imageHeight,
         )
@@ -239,7 +235,7 @@ class DocumentsRepository(
         if (rotated !== bitmap) bitmap.recycle()
         rotated.recycle()
         dao.setPageFile(page.id, dest.absolutePath)
-        dao.setPageCorners(page.id, null, null, 0, rotatedWidth, rotatedHeight)
+        dao.setPageCorners(page.id, null, null, null, 0, rotatedWidth, rotatedHeight)
         files.deletePageFile(page.filePath)
         dao.touchDocument(page.documentId, System.currentTimeMillis())
     }
@@ -247,5 +243,13 @@ class DocumentsRepository(
     companion object {
         fun defaultTitle(): String =
             SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date())
+
+        /** Schema marker for the stored corner triple: 0 when all three are null. */
+        fun cornerSchemaFor(vararg quads: FloatArray?): Int =
+            if (quads.any { it != null }) {
+                io.github.alexeygrigorev.openscan.scan.PageCorners.SCHEMA_VERSION
+            } else {
+                0
+            }
     }
 }

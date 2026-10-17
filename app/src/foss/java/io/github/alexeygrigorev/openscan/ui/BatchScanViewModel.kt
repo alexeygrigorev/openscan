@@ -11,7 +11,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.alexeygrigorev.openscan.data.DocumentsRepository
 import io.github.alexeygrigorev.openscan.data.SettingsRepository
+import io.github.alexeygrigorev.openscan.scan.CaptureRefine
 import io.github.alexeygrigorev.openscan.scan.Images
+import io.github.alexeygrigorev.openscan.scan.QuadPlausibility
 import io.github.alexeygrigorev.openscan.scan.ScanPipeline
 import java.io.File
 import java.util.concurrent.Executors
@@ -34,8 +36,13 @@ import kotlinx.coroutines.withContext
  * (TL, TR, BR, BL). [quad] is null when detection failed — the page still
  * ships as the raw frame and the user corrects it in the review editor.
  * [autoQuad] is the detector's original answer and never changes after
- * capture; [quad] is the working copy the review editor modifies. Together
- * they become the training/eval pair stored on the saved page (item 5).
+ * capture; [refinedQuad] is the post-capture refinement (item 8b, null when
+ * refinement found nothing better); [quad] is the working copy the review
+ * editor modifies. Together they become the training/eval triple stored on
+ * the saved page (items 5+8). [needsCheck] marks refinement-flagged pages so
+ * the review grid can highlight "check corners"; any manual edit clears it.
+ * [userEdited] records a manual Done / full-frame choice so the saved
+ * user-corners stay null when the user never touched the quad.
  * [version] bumps on every quad/rotation edit so preview thumbnails can
  * invalidate their cache.
  */
@@ -46,6 +53,9 @@ data class CapturedPage(
     val frameHeight: Int,
     val quad: FloatArray?,
     val autoQuad: FloatArray? = quad,
+    val refinedQuad: FloatArray? = null,
+    val needsCheck: Boolean = false,
+    val userEdited: Boolean = false,
     val rotation: Int = 0,
     val version: Int = 0,
 ) {
@@ -177,14 +187,17 @@ class BatchScanViewModel(
         captureShutter?.invoke() ?: capturing.set(false)
     }
 
-    /** Full-res upright still from ImageCapture; detection runs on it again. */
+    /** Full-res upright still from ImageCapture; refined on the detect thread. */
     fun onStillCaptured(stillFull: Bitmap) {
         viewModelScope.launch(detectContext) {
             try {
                 // Bound the stored frame like every other page import.
                 val still = downscaleMax(stillFull, SAVE_MAX_DIM)
-                val quad = runCatching { ScanPipeline.detectQuad(still) }.getOrNull()
-                    ?: scaleQuad(lastQuad, lastQuadFrame, still.width, still.height)
+                val live = scaleQuad(lastQuad, lastQuadFrame, still.width, still.height)
+                // Post-capture refinement (item 8b): a slower full-res pass
+                // with plausibility checks; falls back to the live quad.
+                val refined = runCatching { CaptureRefine.refine(still, live) }.getOrNull()
+                val quad = refined?.quad ?: live
                 val file = File(batchDir, "page-${nextId}.jpg")
                 Images.saveJpeg(still, file)
                 pages.value = pages.value + CapturedPage(
@@ -193,6 +206,9 @@ class BatchScanViewModel(
                     frameWidth = still.width,
                     frameHeight = still.height,
                     quad = quad,
+                    autoQuad = live ?: quad,
+                    refinedQuad = refined?.refined,
+                    needsCheck = refined?.needsCheck ?: true,
                 )
                 pageCount.value = pages.value.size
                 lastCapturedQuad = quad
@@ -247,9 +263,12 @@ class BatchScanViewModel(
 
     fun rotatePage(id: Long) = editPage(id) { it.copy(rotation = (it.rotation + 1) % 4) }
 
-    fun setQuad(id: Long, quad: FloatArray) = editPage(id) { it.copy(quad = quad) }
+    /** Manual corner correction: the user takes responsibility (clears the flag). */
+    fun setQuad(id: Long, quad: FloatArray) =
+        editPage(id) { it.copy(quad = quad, needsCheck = false, userEdited = true) }
 
-    fun clearQuad(id: Long) = editPage(id) { it.copy(quad = null) }
+    fun clearQuad(id: Long) =
+        editPage(id) { it.copy(quad = null, needsCheck = false, userEdited = true) }
 
     /** Re-runs the detector on the stored frame (review editor's Auto button). */
     fun autoDetect(id: Long) {
@@ -260,7 +279,12 @@ class BatchScanViewModel(
             val quad = runCatching { ScanPipeline.detectQuad(decoded) }.getOrNull()
                 ?.let { scaleQuad(it, decoded.width to decoded.height, page.frameWidth, page.frameHeight) }
             decoded.recycle()
-            if (quad != null) setQuad(id, quad)
+            if (quad != null) {
+                // A re-detection is a new refined answer, not a user edit;
+                // flag it when it is itself implausible.
+                val flagged = !QuadPlausibility.check(quad, page.frameWidth, page.frameHeight).plausible
+                editPage(id) { it.copy(quad = quad, refinedQuad = quad, needsCheck = flagged) }
+            }
         }
     }
 
@@ -316,10 +340,13 @@ class BatchScanViewModel(
                             rendered,
                             detected = true,
                             original = if (keepOriginals) page.file else null,
-                            // Training/eval pair in still-frame coordinates:
-                            // the detector's answer and the user's correction.
+                            // Training/eval triple in still-frame coordinates:
+                            // the live answer, the refined answer, and the
+                            // user's correction (null when untouched, so
+                            // before/after stays the detector's own delta).
                             autoCorners = page.autoQuad,
-                            userCorners = page.quad,
+                            refinedCorners = page.refinedQuad,
+                            userCorners = if (page.userEdited) page.quad else null,
                             imageWidth = page.frameWidth,
                             imageHeight = page.frameHeight,
                         )
@@ -431,20 +458,28 @@ class BatchScanViewModel(
 
     companion object {
 
-        /** Detection cadence on the analysis stream. */
-        const val ANALYSIS_INTERVAL_MS = 220L
+        /**
+         * Detection cadence on the analysis stream (item 8a): 160 ms keeps
+         * the overlay live and reaches a lock sooner on clean sheets without
+         * starving the detect thread (a detect pass costs ~100-200 ms).
+         */
+        const val ANALYSIS_INTERVAL_MS = 160L
 
         /** Consecutive agreeing frames before an auto snap. */
         const val STABLE_FRAMES = 2
 
-        /** Max corner drift between frames that still counts as "held". */
-        const val STABLE_DELTA = 0.035
+        /**
+         * Max corner drift between frames that still counts as "held"
+         * (item 8a): 4.5% of the frame diagonal tolerates normal hand shake
+         * on a flat sheet; tighter values only delayed the lock.
+         */
+        const val STABLE_DELTA = 0.045
 
         /** Document must fill at least this frame fraction to auto-snap. */
         const val MIN_AREA_FRAC = 0.08f
 
-        /** Min quiet period between auto snaps. */
-        const val CAPTURE_COOLDOWN_MS = 1_400L
+        /** Min quiet period between auto snaps (item 8a: 1.1 s). */
+        const val CAPTURE_COOLDOWN_MS = 1_100L
 
         /** Corner move (frame fraction) that re-arms the trigger without a dropout. */
         const val RESNAP_DELTA = 0.015

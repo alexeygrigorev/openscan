@@ -12,7 +12,7 @@ import java.io.File
 
 @Database(
     entities = [DocumentEntity::class, PageEntity::class, UploadEntry::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class OpenScanDatabase : RoomDatabase() {
@@ -54,6 +54,16 @@ abstract class OpenScanDatabase : RoomDatabase() {
                     """.trimIndent(),
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_uploads_state ON uploads(state)")
+            }
+        }
+
+        /**
+         * v2 → v3 (feedback v0.2.4, item 8): the refined-corner slot of the
+         * training triple. Nullable, so every existing row keeps working.
+         */
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE pages ADD COLUMN refinedCorners TEXT")
             }
         }
     }
@@ -118,7 +128,7 @@ class AppContainer(context: Context) {
 
     val database: OpenScanDatabase =
         Room.databaseBuilder(appContext, OpenScanDatabase::class.java, "openscan.db")
-            .addMigrations(OpenScanDatabase.MIGRATION_1_2)
+            .addMigrations(OpenScanDatabase.MIGRATION_1_2, OpenScanDatabase.MIGRATION_2_3)
             .build()
 
     val files = DocumentFiles(appContext)

@@ -15,14 +15,15 @@ object UploadPayloads {
     const val SCHEMA_VERSION = 1
 
     /**
-     * Builds the sidecar JSON: app version, schema versions, the auto and
-     * user corner quads (8-number arrays or null), the stored image size, the
-     * effective filter id, and the device model. Never throws: falls back to
-     * a minimal document carrying the error message.
+     * Builds the sidecar JSON: app version, schema versions, the auto, refined
+     * and user corner quads (8-number arrays or null), the quad coordinate
+     * space size, the effective filter id, and the device model. Never throws:
+     * falls back to a minimal document carrying the error message.
      */
     fun sidecarJson(
         appVersion: String,
         autoCorners: FloatArray?,
+        refinedCorners: FloatArray?,
         userCorners: FloatArray?,
         imageWidth: Int,
         imageHeight: Int,
@@ -36,6 +37,7 @@ object UploadPayloads {
                 .put("appVersion", appVersion)
                 .put("deviceModel", deviceModel)
                 .put("autoCorners", quadOrNull(autoCorners))
+                .put("refinedCorners", quadOrNull(refinedCorners))
                 .put("userCorners", quadOrNull(userCorners))
                 .put("imageWidth", imageWidth)
                 .put("imageHeight", imageHeight)

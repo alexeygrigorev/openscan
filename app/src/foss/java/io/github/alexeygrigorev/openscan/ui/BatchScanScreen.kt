@@ -580,6 +580,20 @@ private fun PageThumbnail(
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                 )
             }
+            // Post-capture refinement (item 8b) flagged this quad: ask the
+            // user to verify the corners before saving.
+            if (page.needsCheck && page.quad != null) {
+                Text(
+                    "check corners",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFFFD60A),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(4.dp)
+                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            }
             IconButton(
                 onClick = { viewModel.deletePage(page.id) },
                 modifier = Modifier
