@@ -11,12 +11,52 @@ import androidx.room.RoomDatabase
 import java.io.File
 
 @Database(
-    entities = [DocumentEntity::class, PageEntity::class],
-    version = 1,
+    entities = [DocumentEntity::class, PageEntity::class, UploadEntry::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class OpenScanDatabase : RoomDatabase() {
     abstract fun openscanDao(): OpenScanDao
+
+    companion object {
+        /**
+         * v1 → v2 (feedback v0.2.4): nullable corner/filter columns plus the
+         * durable upload queue. Every addition is nullable or has a default,
+         * so updating from v0.2.3 keeps all rows: legacy pages read back with
+         * cornerSchema 0 ("no corner data") and null filters (app default).
+         */
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE documents ADD COLUMN scanFilter TEXT")
+                db.execSQL("ALTER TABLE pages ADD COLUMN autoCorners TEXT")
+                db.execSQL("ALTER TABLE pages ADD COLUMN userCorners TEXT")
+                db.execSQL("ALTER TABLE pages ADD COLUMN cornerSchema INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE pages ADD COLUMN imageWidth INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE pages ADD COLUMN imageHeight INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE pages ADD COLUMN scanFilter TEXT")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS uploads (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        kind TEXT NOT NULL,
+                        filePath TEXT NOT NULL,
+                        remoteName TEXT NOT NULL,
+                        contentType TEXT NOT NULL,
+                        pageId INTEGER,
+                        documentId INTEGER,
+                        detected INTEGER NOT NULL DEFAULT 0,
+                        state TEXT NOT NULL,
+                        attempts INTEGER NOT NULL DEFAULT 0,
+                        lastError TEXT,
+                        createdAt INTEGER NOT NULL DEFAULT 0,
+                        updatedAt INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_uploads_state ON uploads(state)")
+            }
+        }
+    }
 }
 
 /**
@@ -77,7 +117,9 @@ class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
     val database: OpenScanDatabase =
-        Room.databaseBuilder(appContext, OpenScanDatabase::class.java, "openscan.db").build()
+        Room.databaseBuilder(appContext, OpenScanDatabase::class.java, "openscan.db")
+            .addMigrations(OpenScanDatabase.MIGRATION_1_2)
+            .build()
 
     val files = DocumentFiles(appContext)
     val importer = io.github.alexeygrigorev.openscan.scan.PageImporter(appContext)

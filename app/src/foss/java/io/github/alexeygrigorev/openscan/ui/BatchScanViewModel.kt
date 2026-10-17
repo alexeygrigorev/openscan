@@ -33,6 +33,9 @@ import kotlinx.coroutines.withContext
  * (cache dir) plus the document quad detected on it, in frame coordinates
  * (TL, TR, BR, BL). [quad] is null when detection failed — the page still
  * ships as the raw frame and the user corrects it in the review editor.
+ * [autoQuad] is the detector's original answer and never changes after
+ * capture; [quad] is the working copy the review editor modifies. Together
+ * they become the training/eval pair stored on the saved page (item 5).
  * [version] bumps on every quad/rotation edit so preview thumbnails can
  * invalidate their cache.
  */
@@ -42,6 +45,7 @@ data class CapturedPage(
     val frameWidth: Int,
     val frameHeight: Int,
     val quad: FloatArray?,
+    val autoQuad: FloatArray? = quad,
     val rotation: Int = 0,
     val version: Int = 0,
 ) {

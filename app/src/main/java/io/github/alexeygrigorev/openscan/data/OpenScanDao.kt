@@ -61,6 +61,65 @@ interface OpenScanDao {
     @Query("UPDATE pages SET filePath = :filePath WHERE id = :id")
     suspend fun setPageFile(id: Long, filePath: String)
 
+    /** Persists the training/eval corner pair for a page (item 5). */
+    @Query(
+        """
+        UPDATE pages
+        SET autoCorners = :auto, userCorners = :user, cornerSchema = :schema,
+            imageWidth = :width, imageHeight = :height
+        WHERE id = :id
+        """
+    )
+    suspend fun setPageCorners(
+        id: Long,
+        auto: String?,
+        user: String?,
+        schema: Int,
+        width: Int,
+        height: Int,
+    )
+
+    @Query("UPDATE pages SET scanFilter = :filter WHERE id = :id")
+    suspend fun setPageFilter(id: Long, filter: String?)
+
+    @Query("UPDATE documents SET scanFilter = :filter WHERE id = :id")
+    suspend fun setDocumentFilter(id: Long, filter: String?)
+
+    @Insert
+    suspend fun insertUpload(entry: UploadEntry): Long
+
+    @Query("SELECT * FROM uploads ORDER BY createdAt ASC")
+    fun observeUploads(): Flow<List<UploadEntry>>
+
+    @Query("SELECT * FROM uploads WHERE state IN ('queued', 'failed') ORDER BY createdAt ASC")
+    suspend fun pendingUploads(): List<UploadEntry>
+
+    @Query("SELECT * FROM uploads WHERE state = :state ORDER BY createdAt ASC")
+    suspend fun uploadsInState(state: String): List<UploadEntry>
+
+    @Query(
+        """
+        UPDATE uploads
+        SET state = :state, attempts = :attempts, lastError = :lastError,
+            updatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun setUploadState(
+        id: Long,
+        state: String,
+        attempts: Int,
+        lastError: String?,
+        updatedAt: Long,
+    )
+
+    @Query("DELETE FROM uploads WHERE id = :id")
+    suspend fun deleteUpload(id: Long)
+
+    /** Drops old successful records so the queue table stays small. */
+    @Query("DELETE FROM uploads WHERE state = 'uploaded' AND updatedAt < :before")
+    suspend fun pruneUploaded(before: Long)
+
     @Update
     suspend fun updatePages(pages: List<PageEntity>)
 

@@ -34,8 +34,19 @@ class DocumentsRepository(
      * Imports one page. [detected] marks scanner captures whose document
      * bounds were detected on-device (gallery imports are "manual"); it only
      * annotates the opt-in telemetry upload, never the import itself.
+     * [autoCorners]/[userCorners] are the training/eval corner pair in stored
+     * page coordinates (null when unknown); [imageWidth]/[imageHeight] are the
+     * stored page's pixel dimensions.
      */
-    suspend fun importPage(documentId: Long, source: Uri, detected: Boolean = false): PageEntity = withContext(Dispatchers.IO) {
+    suspend fun importPage(
+        documentId: Long,
+        source: Uri,
+        detected: Boolean = false,
+        autoCorners: FloatArray? = null,
+        userCorners: FloatArray? = null,
+        imageWidth: Int = 0,
+        imageHeight: Int = 0,
+    ): PageEntity = withContext(Dispatchers.IO) {
         val position = dao.getPages(documentId).size
         val file = files.pageFile(documentId)
         importer.import(source, file)
@@ -47,6 +58,15 @@ class DocumentsRepository(
             position = position,
             filePath = file.absolutePath,
             createdAt = System.currentTimeMillis(),
+            autoCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(autoCorners),
+            userCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(userCorners),
+            cornerSchema = if (autoCorners != null || userCorners != null) {
+                io.github.alexeygrigorev.openscan.scan.PageCorners.SCHEMA_VERSION
+            } else {
+                0
+            },
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
         )
         val id = dao.insertPage(page)
         dao.touchDocument(documentId, System.currentTimeMillis())
@@ -72,6 +92,8 @@ class DocumentsRepository(
         bitmap: android.graphics.Bitmap,
         detected: Boolean = false,
         original: java.io.File? = null,
+        autoCorners: FloatArray? = null,
+        userCorners: FloatArray? = null,
     ): PageEntity =
         withContext(Dispatchers.IO) {
             val position = dao.getPages(documentId).size
@@ -83,6 +105,15 @@ class DocumentsRepository(
                 position = position,
                 filePath = file.absolutePath,
                 createdAt = System.currentTimeMillis(),
+                autoCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(autoCorners),
+                userCorners = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(userCorners),
+                cornerSchema = if (autoCorners != null || userCorners != null) {
+                    io.github.alexeygrigorev.openscan.scan.PageCorners.SCHEMA_VERSION
+                } else {
+                    0
+                },
+                imageWidth = bitmap.width,
+                imageHeight = bitmap.height,
             )
             val id = dao.insertPage(page)
             original?.takeIf { it.exists() }?.let { source ->
@@ -91,6 +122,36 @@ class DocumentsRepository(
             dao.touchDocument(documentId, System.currentTimeMillis())
             page.copy(id = id)
         }
+
+    /** Updates the stored corner pair for a page (re-crop / re-edit). */
+    suspend fun setPageCorners(
+        pageId: Long,
+        autoCorners: FloatArray?,
+        userCorners: FloatArray?,
+        imageWidth: Int,
+        imageHeight: Int,
+    ) {
+        dao.setPageCorners(
+            id = pageId,
+            auto = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(autoCorners),
+            user = io.github.alexeygrigorev.openscan.scan.PageCorners.encode(userCorners),
+            schema = if (autoCorners != null || userCorners != null) {
+                io.github.alexeygrigorev.openscan.scan.PageCorners.SCHEMA_VERSION
+            } else {
+                0
+            },
+            width = imageWidth,
+            height = imageHeight,
+        )
+    }
+
+    suspend fun setPageFilter(pageId: Long, filterId: String?) {
+        dao.setPageFilter(pageId, filterId)
+    }
+
+    suspend fun setDocumentFilter(documentId: Long, filterId: String?) {
+        dao.setDocumentFilter(documentId, filterId)
+    }
 
     suspend fun renameDocument(id: Long, title: String) {
         dao.renameDocument(id, title.trim().ifEmpty { defaultTitle() }, System.currentTimeMillis())

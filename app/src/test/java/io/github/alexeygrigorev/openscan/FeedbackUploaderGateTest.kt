@@ -29,6 +29,12 @@ class FeedbackUploaderGateTest {
 
         override val keepOriginalsEnabled: Flow<Boolean> = MutableStateFlow(true)
         override suspend fun setKeepOriginalsEnabled(enabled: Boolean) = Unit
+
+        override val developerModeEnabled: Flow<Boolean> = MutableStateFlow(false)
+        override suspend fun setDeveloperModeEnabled(enabled: Boolean) = Unit
+
+        override val filterDefault: Flow<String> = MutableStateFlow("document")
+        override suspend fun setFilterDefault(filterId: String) = Unit
     }
 
     private class Recorder {

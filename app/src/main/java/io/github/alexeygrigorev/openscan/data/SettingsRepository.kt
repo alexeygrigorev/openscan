@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -35,6 +36,22 @@ interface SettingsRepository {
     val keepOriginalsEnabled: Flow<Boolean>
 
     suspend fun setKeepOriginalsEnabled(enabled: Boolean)
+
+    /**
+     * Developer mode (item 1): unlocks the debug-archive export and extra
+     * diagnostics. Default OFF.
+     */
+    val developerModeEnabled: Flow<Boolean>
+
+    suspend fun setDeveloperModeEnabled(enabled: Boolean)
+
+    /**
+     * Default enhancement filter id ([ScanFilter.id]) for pages without a
+     * document/page override. Default is the high-contrast document mode.
+     */
+    val filterDefault: Flow<String>
+
+    suspend fun setFilterDefault(filterId: String)
 }
 
 /** DataStore-backed [SettingsRepository]; the only reader/writer of the pref. */
@@ -56,6 +73,20 @@ class DataStoreSettingsRepository(
         dataStore.edit { prefs -> prefs[KEEP_ORIGINALS_ENABLED] = enabled }
     }
 
+    override val developerModeEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[DEVELOPER_MODE_ENABLED] ?: DEFAULT_DEVELOPER_MODE_ENABLED }
+
+    override suspend fun setDeveloperModeEnabled(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[DEVELOPER_MODE_ENABLED] = enabled }
+    }
+
+    override val filterDefault: Flow<String> =
+        dataStore.data.map { prefs -> prefs[FILTER_DEFAULT] ?: DEFAULT_FILTER_DEFAULT }
+
+    override suspend fun setFilterDefault(filterId: String) {
+        dataStore.edit { prefs -> prefs[FILTER_DEFAULT] = filterId }
+    }
+
     companion object {
         /** Opt-in telemetry is off unless the user turns it on. */
         const val DEFAULT_FEEDBACK_UPLOAD_ENABLED = false
@@ -63,8 +94,16 @@ class DataStoreSettingsRepository(
         /** Originals are kept unless the user opts out. */
         const val DEFAULT_KEEP_ORIGINALS_ENABLED = true
 
+        /** Developer diagnostics are hidden unless the user opts in. */
+        const val DEFAULT_DEVELOPER_MODE_ENABLED = false
+
+        /** High-contrast document mode is the default enhancement. */
+        const val DEFAULT_FILTER_DEFAULT = "document"
+
         private val FEEDBACK_UPLOAD_ENABLED = booleanPreferencesKey("feedback_upload_enabled")
         private val KEEP_ORIGINALS_ENABLED = booleanPreferencesKey("keep_originals_enabled")
+        private val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
+        private val FILTER_DEFAULT = stringPreferencesKey("filter_default")
 
         /** File-backed preference DataStore used by [io.github.alexeygrigorev.openscan.data.AppContainer]. */
         fun createDefaultDataStore(context: Context): DataStore<Preferences> {

@@ -68,6 +68,10 @@ class BatchPipelineInstrumentedTest {
                 override suspend fun setFeedbackUploadEnabled(enabled: Boolean) {}
                 override val keepOriginalsEnabled = MutableStateFlow(true)
                 override suspend fun setKeepOriginalsEnabled(enabled: Boolean) {}
+                override val developerModeEnabled = MutableStateFlow(false)
+                override suspend fun setDeveloperModeEnabled(enabled: Boolean) {}
+                override val filterDefault = MutableStateFlow("document")
+                override suspend fun setFilterDefault(filterId: String) {}
             },
             appVersion = "test",
             doUpload = { _, _ -> },
