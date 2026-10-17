@@ -46,10 +46,11 @@ data class PageEntity(
      * Training/eval corner pairs (item 5): the detector's corners at capture
      * time ([autoCorners]) and the final user-corrected corners
      * ([userCorners]), each a JSON array of 8 numbers (TL, TR, BR, BL) or
-     * null when unknown (gallery imports, legacy rows). [cornerSchema] is the
-     * [PageCorners.SCHEMA_VERSION] that wrote them; 0 means "no corner data"
-     * (every pre-v2 row). [imageWidth]/[imageHeight] are the stored page's
-     * pixel dimensions so corners stay interpretable without decoding.
+     * null when unknown (gallery imports, legacy rows, rotated pages).
+     * [cornerSchema] is the [PageCorners.SCHEMA_VERSION] that wrote them;
+     * 0 means "no corner data" (every pre-v2 row). [imageWidth]/[imageHeight]
+     * are the dimensions of the coordinate space the corners live in — the
+     * capture frame when quads are present, the stored page otherwise.
      */
     val autoCorners: String? = null,
     val userCorners: String? = null,

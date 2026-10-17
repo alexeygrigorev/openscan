@@ -316,6 +316,12 @@ class BatchScanViewModel(
                             rendered,
                             detected = true,
                             original = if (keepOriginals) page.file else null,
+                            // Training/eval pair in still-frame coordinates:
+                            // the detector's answer and the user's correction.
+                            autoCorners = page.autoQuad,
+                            userCorners = page.quad,
+                            imageWidth = page.frameWidth,
+                            imageHeight = page.frameHeight,
                         )
                         rendered.recycle()
                         if (rendered !== source) source.recycle()

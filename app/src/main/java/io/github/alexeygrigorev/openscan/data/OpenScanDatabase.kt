@@ -128,7 +128,8 @@ class AppContainer(context: Context) {
 
     // Endpoint/token come in at build time (OPENSCAN_TELEMETRY_UPLOAD_URL /
     // OPENSCAN_TELEMETRY_UPLOAD_TOKEN gradle properties or env vars); when
-    // absent the uploader falls back to an inert ".invalid" endpoint.
+    // absent the uploader falls back to an inert ".invalid" endpoint. The
+    // queue rows live in the same database so uploads survive process death.
     val uploader = io.github.alexeygrigorev.openscan.scan.FeedbackUploader(
         settings = settings,
         appVersion = appVersionName(),
@@ -136,6 +137,8 @@ class AppContainer(context: Context) {
             io.github.alexeygrigorev.openscan.scan.FeedbackUploader.ENDPOINT
         },
         token = BuildConfig.TELEMETRY_TOKEN,
+        dao = database.openscanDao(),
+        workDir = File(appContext.cacheDir, "upload-queue").apply { mkdirs() },
     )
     val repository = DocumentsRepository(database.openscanDao(), files, importer, uploader)
 

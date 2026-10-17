@@ -5,6 +5,7 @@ import io.github.alexeygrigorev.openscan.scan.FeedbackUploader
 import io.github.alexeygrigorev.openscan.scan.PageImporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -50,9 +51,6 @@ class DocumentsRepository(
         val position = dao.getPages(documentId).size
         val file = files.pageFile(documentId)
         importer.import(source, file)
-        // Opt-in telemetry: fire-and-forget, best-effort; the uploader no-ops
-        // unless the user enabled it and never blocks or fails this import.
-        feedbackUploader.maybeUpload(file, detected)
         val page = PageEntity(
             documentId = documentId,
             position = position,
@@ -70,6 +68,19 @@ class DocumentsRepository(
         )
         val id = dao.insertPage(page)
         dao.touchDocument(documentId, System.currentTimeMillis())
+        // Opt-in telemetry: durable enqueue, best-effort; never blocks or
+        // fails this import. The uploader no-ops unless the toggle is on.
+        feedbackUploader.enqueuePage(
+            pageJpeg = file,
+            detected = detected,
+            autoCorners = autoCorners,
+            userCorners = userCorners,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            filterId = null,
+            pageId = id,
+            documentId = documentId,
+        )
         page.copy(id = id)
     }
 
@@ -94,12 +105,13 @@ class DocumentsRepository(
         original: java.io.File? = null,
         autoCorners: FloatArray? = null,
         userCorners: FloatArray? = null,
+        imageWidth: Int = 0,
+        imageHeight: Int = 0,
     ): PageEntity =
         withContext(Dispatchers.IO) {
             val position = dao.getPages(documentId).size
             val file = files.pageFile(documentId)
             io.github.alexeygrigorev.openscan.scan.Images.saveJpeg(bitmap, file)
-            feedbackUploader.maybeUpload(file, detected)
             val page = PageEntity(
                 documentId = documentId,
                 position = position,
@@ -112,14 +124,27 @@ class DocumentsRepository(
                 } else {
                     0
                 },
-                imageWidth = bitmap.width,
-                imageHeight = bitmap.height,
+                imageWidth = imageWidth,
+                imageHeight = imageHeight,
             )
             val id = dao.insertPage(page)
             original?.takeIf { it.exists() }?.let { source ->
                 runCatching { source.copyTo(files.originalFile(documentId, id), overwrite = false) }
             }
             dao.touchDocument(documentId, System.currentTimeMillis())
+            // Opt-in telemetry: durable enqueue, best-effort; never blocks or
+            // fails this import. The uploader no-ops unless the toggle is on.
+            feedbackUploader.enqueuePage(
+                pageJpeg = file,
+                detected = detected,
+                autoCorners = autoCorners,
+                userCorners = userCorners,
+                imageWidth = imageWidth,
+                imageHeight = imageHeight,
+                filterId = null,
+                pageId = id,
+                documentId = documentId,
+            )
             page.copy(id = id)
         }
 
@@ -151,6 +176,22 @@ class DocumentsRepository(
 
     suspend fun setDocumentFilter(documentId: Long, filterId: String?) {
         dao.setDocumentFilter(documentId, filterId)
+    }
+
+    /** Visible upload status for Settings (item 0). */
+    fun observeUploads(): Flow<List<UploadEntry>> = dao.observeUploads()
+
+    fun observeUploadStats(): Flow<io.github.alexeygrigorev.openscan.scan.UploadStats> =
+        dao.observeUploads().map { io.github.alexeygrigorev.openscan.scan.UploadStats.from(it) }
+
+    /** Manual retry of failed/queued uploads from Settings. */
+    fun retryUploads() {
+        feedbackUploader.retryNow()
+    }
+
+    /** Flushes due uploads (app start, toggle re-enabled). */
+    fun flushUploads() {
+        feedbackUploader.drain()
     }
 
     suspend fun renameDocument(id: Long, title: String) {
@@ -190,9 +231,15 @@ class DocumentsRepository(
         val rotated = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         val dest = files.pageFile(page.documentId)
         io.github.alexeygrigorev.openscan.scan.Images.saveJpeg(rotated, dest)
+        // A baked rotation invalidates the recorded corner geometry (quads
+        // live in pre-rotation frame coordinates), so the pair is cleared
+        // rather than left silently stale; dims track the new stored page.
+        val rotatedWidth = rotated.width
+        val rotatedHeight = rotated.height
         if (rotated !== bitmap) bitmap.recycle()
         rotated.recycle()
         dao.setPageFile(page.id, dest.absolutePath)
+        dao.setPageCorners(page.id, null, null, 0, rotatedWidth, rotatedHeight)
         files.deletePageFile(page.filePath)
         dao.touchDocument(page.documentId, System.currentTimeMillis())
     }

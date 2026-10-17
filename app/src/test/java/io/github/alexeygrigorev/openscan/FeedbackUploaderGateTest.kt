@@ -38,9 +38,9 @@ class FeedbackUploaderGateTest {
     }
 
     private class Recorder {
-        var uploads: List<Pair<URL, File>> = emptyList()
-        fun record(url: URL, file: File) {
-            uploads = uploads + (url to file)
+        var uploads: List<Triple<URL, File, String>> = emptyList()
+        fun record(url: URL, file: File, contentType: String) {
+            uploads = uploads + Triple(url, file, contentType)
         }
     }
 
@@ -68,7 +68,8 @@ class FeedbackUploaderGateTest {
         uploader(settings, recorder, endpoint = "https://example.com/uploads/")
             .upload(File("/tmp/page.jpg"), detected = true)
         assertEquals(1, recorder.uploads.size)
-        val (url, file) = recorder.uploads.first()
+        val (url, file, contentType) = recorder.uploads.first()
+        assertEquals("image/jpeg", contentType)
         assertEquals("/tmp/page.jpg", file.path)
         assertTrue(url.path.endsWith(".jpg"))
         // the file name must be a UUID (UUID.fromString throws otherwise)
