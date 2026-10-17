@@ -91,6 +91,13 @@ android {
             storePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
             keyAlias = System.getenv("ANDROID_RELEASE_KEY_ALIAS")
             keyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+            // Sideloaded updates must install over every shipped release:
+            // sign with v1 (JAR) AND v2 so the APK carries META-INF
+            // signatures as well as the v2 block. Same stable key,
+            // additive schemes — existing installs update without an
+            // uninstall.
+            isV1SigningEnabled = true
+            isV2SigningEnabled = true
         }
         buildTypes { getByName("release") { signingConfig = signingConfigs.getByName("release") } }
     }
