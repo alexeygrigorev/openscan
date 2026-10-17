@@ -36,7 +36,7 @@ object Images {
         return sample
     }
 
-    fun saveJpeg(bitmap: Bitmap, dest: File, quality: Int = 90) {
+    fun saveJpeg(bitmap: Bitmap, dest: File, quality: Int = 93) {
         FileOutputStream(dest).use { out ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
         }
@@ -61,7 +61,7 @@ class PageImporter(private val context: Context) {
             throw IllegalStateException("not a decodable image: $source")
         }
 
-        val maxDim = 2560
+        val maxDim = 3200
         val options = BitmapFactory.Options().apply {
             inSampleSize = Images.sampleSizeFor(bounds.outWidth, bounds.outHeight, maxDim)
         }

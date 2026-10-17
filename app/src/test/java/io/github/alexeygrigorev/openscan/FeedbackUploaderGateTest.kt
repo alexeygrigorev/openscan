@@ -35,6 +35,8 @@ class FeedbackUploaderGateTest {
 
         override val filterDefault: Flow<String> = MutableStateFlow("document")
         override suspend fun setFilterDefault(filterId: String) = Unit
+        override val autoCaptureEnabled = MutableStateFlow(false)
+        override suspend fun setAutoCaptureEnabled(enabled: Boolean) {}
     }
 
     private class Recorder {

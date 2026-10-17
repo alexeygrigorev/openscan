@@ -162,7 +162,12 @@ class BatchScanViewModel(
                         quad, lastQuadFrame,
                         lastCapturedQuad, lastCapturedFrame,
                     )
-                if (stableEnough && cooldownOver && sceneChanged &&
+                // Auto-capture (item 9) fires only while the Settings toggle
+                // is on; otherwise the outline stays a hint and the shutter
+                // is the only trigger. The toggle read is DataStore-cached.
+                val autoOn = runCatching { settings.autoCaptureEnabled.first() }
+                    .getOrDefault(false)
+                if (autoOn && stableEnough && cooldownOver && sceneChanged &&
                     pages.value.size < AUTO_CAPTURE_MAX_PAGES
                 ) {
                     requestCapture()
@@ -493,6 +498,7 @@ class BatchScanViewModel(
         const val THUMB_MAX_DIM = 720
         const val EDITOR_MAX_DIM = 2048
         const val AUTODETECT_MAX_DIM = 1600
-        const val SAVE_MAX_DIM = 2560
+        /** Stored-frame bound (item 10): full enough for ~300 DPI A4 warps. */
+        const val SAVE_MAX_DIM = 3200
     }
 }

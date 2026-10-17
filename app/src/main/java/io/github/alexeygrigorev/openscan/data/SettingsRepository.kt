@@ -52,6 +52,16 @@ interface SettingsRepository {
     val filterDefault: Flow<String>
 
     suspend fun setFilterDefault(filterId: String)
+
+    /**
+     * Auto-capture (item 9): when on, the foss viewfinder snaps a page once
+     * the detector holds its corners steady; when off, the live outline is
+     * only a hint and capture is manual via the shutter. Default OFF:
+     * tapping the shutter plus post-capture refinement is the primary flow.
+     */
+    val autoCaptureEnabled: Flow<Boolean>
+
+    suspend fun setAutoCaptureEnabled(enabled: Boolean)
 }
 
 /** DataStore-backed [SettingsRepository]; the only reader/writer of the pref. */
@@ -87,6 +97,13 @@ class DataStoreSettingsRepository(
         dataStore.edit { prefs -> prefs[FILTER_DEFAULT] = filterId }
     }
 
+    override val autoCaptureEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[AUTO_CAPTURE_ENABLED] ?: DEFAULT_AUTO_CAPTURE_ENABLED }
+
+    override suspend fun setAutoCaptureEnabled(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[AUTO_CAPTURE_ENABLED] = enabled }
+    }
+
     companion object {
         /** Opt-in telemetry is off unless the user turns it on. */
         const val DEFAULT_FEEDBACK_UPLOAD_ENABLED = false
@@ -100,10 +117,14 @@ class DataStoreSettingsRepository(
         /** High-contrast document mode is the default enhancement. */
         const val DEFAULT_FILTER_DEFAULT = "document"
 
+        /** Manual shutter is the primary flow; auto-capture is opt-in. */
+        const val DEFAULT_AUTO_CAPTURE_ENABLED = false
+
         private val FEEDBACK_UPLOAD_ENABLED = booleanPreferencesKey("feedback_upload_enabled")
         private val KEEP_ORIGINALS_ENABLED = booleanPreferencesKey("keep_originals_enabled")
         private val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
         private val FILTER_DEFAULT = stringPreferencesKey("filter_default")
+        private val AUTO_CAPTURE_ENABLED = booleanPreferencesKey("auto_capture_enabled")
 
         /** File-backed preference DataStore used by [io.github.alexeygrigorev.openscan.data.AppContainer]. */
         fun createDefaultDataStore(context: Context): DataStore<Preferences> {

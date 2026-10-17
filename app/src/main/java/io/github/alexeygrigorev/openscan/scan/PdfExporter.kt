@@ -13,6 +13,10 @@ import kotlin.math.min
  * Pages are placed centered on an A4 sheet (595×842 pt, swapped for
  * landscape scans) — and, as everywhere in OpenScan, nothing is ever stamped
  * on top of them.
+ *
+ * Resolution (item 10): pages decode at up to 3600 px so a full-bleed A4
+ * embeds at ~300 DPI (3600 px / 11.69 in); the old 2400 px ceiling topped
+ * out near 200 DPI.
  */
 object PdfExporter {
 
@@ -31,11 +35,29 @@ object PdfExporter {
         )
     }
 
+    /** Decode bound for PDF pages: covers 300 DPI on A4's long edge. */
+    const val PDF_MAX_DIM = 3600
+
     fun exportPdf(pageFiles: List<File>, out: OutputStream) {
+        exportPdf(pageFiles, List(pageFiles.size) { ScanFilter.ORIGINAL }, out)
+    }
+
+    /**
+     * Filtered export (item 6): each page is enhanced with its effective
+     * filter before embedding. A filter that fails (e.g. OOM) falls back to
+     * the original page — export never crashes on enhancement.
+     */
+    fun exportPdf(pageFiles: List<File>, filters: List<ScanFilter>, out: OutputStream) {
         val document = PdfDocument()
         try {
             pageFiles.forEachIndexed { index, file ->
-                val bitmap = Images.decodeScaled(file, maxDim = 2400) ?: return@forEachIndexed
+                val decoded = Images.decodeScaled(file, maxDim = PDF_MAX_DIM) ?: return@forEachIndexed
+                val filter = filters.getOrElse(index) { ScanFilter.ORIGINAL }
+                val bitmap = if (filter == ScanFilter.ORIGINAL) {
+                    decoded
+                } else {
+                    ScanFilters.apply(decoded, filter)?.also { decoded.recycle() } ?: decoded
+                }
                 val landscape = bitmap.width > bitmap.height
                 val pageWidth = if (landscape) A4_LONG_PT else A4_SHORT_PT
                 val pageHeight = if (landscape) A4_SHORT_PT else A4_LONG_PT

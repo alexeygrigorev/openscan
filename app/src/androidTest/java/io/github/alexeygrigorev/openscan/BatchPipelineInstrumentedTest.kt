@@ -72,9 +72,11 @@ class BatchPipelineInstrumentedTest {
                 override suspend fun setDeveloperModeEnabled(enabled: Boolean) {}
                 override val filterDefault = MutableStateFlow("document")
                 override suspend fun setFilterDefault(filterId: String) {}
+                override val autoCaptureEnabled = MutableStateFlow(false)
+                override suspend fun setAutoCaptureEnabled(enabled: Boolean) {}
             },
             appVersion = "test",
-            doUpload = { _, _ -> },
+            doUpload = { _, _, _ -> },
         )
         val repo = DocumentsRepository(db.openscanDao(), files, PageImporter(context), uploader)
 

@@ -1344,7 +1344,12 @@ private object QuadDetector {
 /** Four-point perspective correction: rect destination ← quad source, bilinear sampling. */
 private object Perspective {
 
-    fun warpToRect(src: Bitmap, quad: FloatArray, maxEdge: Int = 1600): Bitmap {
+    /**
+     * Warps [src] through [quad] into a rect bitmap sized by the quad's own
+     * edge lengths (item 10: capped at 3200 px so A4 pages embed at
+     * ~300 DPI instead of the old 1600 px / ~140 DPI ceiling).
+     */
+    fun warpToRect(src: Bitmap, quad: FloatArray, maxEdge: Int = 3200): Bitmap {
         val top = dist(quad[0], quad[1], quad[2], quad[3])
         val bottom = dist(quad[6], quad[7], quad[4], quad[5])
         val left = dist(quad[0], quad[1], quad[6], quad[7])
