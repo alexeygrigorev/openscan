@@ -193,12 +193,16 @@ apksigner verify --print-certs app-release.apk | grep 'SHA-256'
 then re-set `ANDROID_RELEASE_KEYSTORE_BASE64` and/or
 `ANDROID_RELEASE_CERT_SHA256` with `gh secret set`.
 
-**`build` fails: "no v1 (JAR) / no v2/v3 signature scheme"** — the release
-APK must carry v1 AND v2 (`isV1SigningEnabled` / `isV2SigningEnabled` on the
-release `signingConfig` in `app/build.gradle.kts`). Android 11+ and Play
-require scheme v2 or v3; the v1 requirement is ours, so sideloaded updates
-install on every PackageManager path. Check that nothing disables either
-scheme.
+**`build` fails: "no META-INF/MANIFEST.MF ..." or "no v2/v3 signature
+scheme"** — the release APK must carry v1 (META-INF JAR signatures) AND v2
+(`enableV1Signing` on the release `signingConfig` in
+`app/build.gradle.kts`; note AGP 8 ignores the legacy
+`isV1SigningEnabled` for APK signing, and `apksigner verify` itself skips
+v1 verification whenever minSdk >= 24 with v2 present — so CI asserts v1
+via the META-INF files plus `jarsigner -verify`, not via apksigner's v1
+line). Android 11+ and Play require scheme v2 or v3; the v1 requirement is
+ours, so sideloaded updates carry META-INF signatures on every
+PackageManager path. Check that nothing disables either scheme.
 
 **Local release build is unsigned** — expected: `app/build.gradle.kts`
 activates the release signing config only when

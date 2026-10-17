@@ -244,14 +244,37 @@ main() {
   # Release APKs ship v1 AND v2 (app/build.gradle.kts enables both on the
   # release signing config): sideloaded updates must carry META-INF
   # signatures as well as the v2 block.
+  #
+  # NOTE: this is deliberately NOT asserted via `apksigner verify` output:
+  # apksig skips v1 verification (reporting "Verified using v1 scheme:
+  # false") whenever minSdk >= 24 and a v2+ scheme verifies — which is
+  # exactly this app's shape (minSdk 26). Presence + jarsigner validity of
+  # the META-INF signatures is the meaningful check instead.
   if [[ "$VARIANT" == "release" ]]; then
-    local v1=false
-    grep -Eq 'Verified using v1 scheme( \([^)]*\))?: true' <<<"$verify_out" && v1=true
-    if [[ "$v1" == true ]]; then
-      pass "signature scheme v1 present"
+    command -v unzip >/dev/null 2>&1 || fail "unzip is required to check v1 META-INF signatures"
+    local meta_list
+    meta_list="$(unzip -l "$APK")"
+    grep -Eq 'META-INF/MANIFEST\.MF' <<<"$meta_list" ||
+      fail "no META-INF/MANIFEST.MF in $APK — release APKs must be signed with v1+v2"
+    grep -Eq 'META-INF/[^/]*\.SF' <<<"$meta_list" ||
+      fail "no META-INF signature file (.SF) in $APK — release APKs must be signed with v1+v2"
+    grep -Eq 'META-INF/[^/]*\.(RSA|DSA|EC)' <<<"$meta_list" ||
+      fail "no META-INF signature block (.RSA/.DSA/.EC) in $APK — release APKs must be signed with v1+v2"
+    pass "v1 META-INF signatures present (MANIFEST.MF + .SF + signature block)"
+    local jarsigner_bin=""
+    if command -v jarsigner >/dev/null 2>&1; then
+      jarsigner_bin="jarsigner"
+    elif [[ -n "${JAVA_HOME:-}" && -x "$JAVA_HOME/bin/jarsigner" ]]; then
+      jarsigner_bin="$JAVA_HOME/bin/jarsigner"
     else
-      fail "no v1 (JAR) signature scheme in $APK — release APKs must be signed with v1+v2"
+      fail "jarsigner not found (neither on PATH nor under JAVA_HOME/bin)"
     fi
+    local jarsigner_out
+    jarsigner_out="$("$jarsigner_bin" -verify "$APK" 2>&1)" ||
+      fail "jarsigner -verify rejected $APK"
+    grep -Eq '^jar verified\.' <<<"$jarsigner_out" ||
+      fail "jarsigner did not report 'jar verified' for $APK (got: $(head -1 <<<"$jarsigner_out"))"
+    pass "jarsigner verifies the v1 JAR signatures"
   fi
 
   # --- signer certificate ----------------------------------------------------
