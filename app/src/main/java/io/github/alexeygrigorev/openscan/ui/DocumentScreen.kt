@@ -1,11 +1,14 @@
 package io.github.alexeygrigorev.openscan.ui
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -58,23 +61,29 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.alexeygrigorev.openscan.data.DocumentEntity
 import io.github.alexeygrigorev.openscan.data.DocumentFiles
 import io.github.alexeygrigorev.openscan.data.DocumentsRepository
 import io.github.alexeygrigorev.openscan.data.PageEntity
+import io.github.alexeygrigorev.openscan.data.SettingsRepository
+import io.github.alexeygrigorev.openscan.scan.DebugArchive
 import io.github.alexeygrigorev.openscan.scan.Images
 import io.github.alexeygrigorev.openscan.scan.JpegExporter
+import io.github.alexeygrigorev.openscan.scan.PageCorners
 import io.github.alexeygrigorev.openscan.scan.PageOcr
 import io.github.alexeygrigorev.openscan.scan.PdfExporter
+import io.github.alexeygrigorev.openscan.scan.ScanFilter
+import io.github.alexeygrigorev.openscan.scan.ScanFilters
+import io.github.alexeygrigorev.openscan.util.safeFileName
 import java.io.File
 import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -85,6 +94,8 @@ class DocumentViewModel(
     val documentId: Long,
     private val repository: DocumentsRepository,
     private val files: DocumentFiles,
+    private val settings: SettingsRepository,
+    private val appVersion: String,
     private val appContext: Context,
 ) : ViewModel() {
 
@@ -94,12 +105,28 @@ class DocumentViewModel(
     val pages: StateFlow<List<PageEntity>> = repository.observePages(documentId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** App-wide enhancement default (item 6). */
+    val appFilterDefault: StateFlow<String> = settings.filterDefault
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanFilter.DEFAULT.id)
+
+    /** Developer mode unlocks the debug-archive actions (item 1). */
+    val developerMode: StateFlow<Boolean> = settings.developerModeEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val exporting = MutableStateFlow(false)
     val exportError = MutableStateFlow<String?>(null)
-    val shareFile = MutableStateFlow<File?>(null)
-    val shareType = MutableStateFlow("application/pdf")
-    val shareLabel = MutableStateFlow("Share PDF")
+
+    /** A finished PDF waiting for the user to pick Share/Print/Open/Save. */
+    val exportReady = MutableStateFlow<File?>(null)
+
+    /** Explicit share handoff (Share button / debug-archive export). */
+    val shareRequest = MutableStateFlow<ShareRequest?>(null)
+
+    /** One-shot snackbar notices (saved-to path, archive queued, …). */
+    val notice = MutableStateFlow<String?>(null)
     val ocrText = MutableStateFlow<String?>(null)
+
+    data class ShareRequest(val file: File, val mimeType: String, val label: String)
 
     /** Serializes page moves so rapid taps can't interleave read-modify-write cycles. */
     private val moveMutex = Mutex()
@@ -144,7 +171,28 @@ class DocumentViewModel(
         exportError.value = null
     }
 
-    /** Renders every page into one PDF in the share-ready cache directory. */
+    fun dismissExportReady() {
+        exportReady.value = null
+    }
+
+    fun consumeShareRequest() {
+        shareRequest.value = null
+    }
+
+    fun consumeNotice() {
+        notice.value = null
+    }
+
+    /** Effective enhancement filter for every page (item 6). */
+    suspend fun effectiveFilters(): List<ScanFilter> {
+        val doc = repository.getDocument(documentId)
+        val default = settings.filterDefault.first()
+        return repository.getPages(documentId).map { page ->
+            ScanFilter.effective(page.filter, doc?.filter, default)
+        }
+    }
+
+    /** Renders every page into one enhanced PDF, then offers the actions. */
     fun exportPdf() {
         if (exporting.value) return
         exporting.value = true
@@ -153,17 +201,121 @@ class DocumentViewModel(
             try {
                 val title = document.value?.title ?: DocumentsRepository.defaultTitle()
                 val pageFiles = collectPageFiles()
+                val filters = effectiveFilters()
                 val out = files.sharedPdfFile(title)
                 withContext(Dispatchers.IO) {
-                    FileOutputStream(out).use { stream -> PdfExporter.exportPdf(pageFiles, stream) }
+                    FileOutputStream(out).use { stream -> PdfExporter.exportPdf(pageFiles, filters, stream) }
                 }
-                shareType.value = "application/pdf"
-                shareLabel.value = "Share PDF"
-                shareFile.value = out
+                exportReady.value = out
             } catch (t: Throwable) {
                 exportError.value = t.message ?: "PDF export failed"
             } finally {
                 exporting.value = false
+            }
+        }
+    }
+
+    /** Document enhancement (item 6); also remembered as the app default. */
+    fun setDocumentFilter(filterId: String?) {
+        viewModelScope.launch {
+            repository.setDocumentFilter(documentId, filterId)
+            if (filterId != null) settings.setFilterDefault(filterId)
+        }
+    }
+
+    /** Debug archive export (item 1): ZIP via the share sheet. */
+    fun exportDebugArchive() {
+        if (exporting.value) return
+        exporting.value = true
+        exportError.value = null
+        viewModelScope.launch {
+            try {
+                val zip = buildDebugArchive()
+                shareRequest.value = ShareRequest(zip, "application/zip", "Share debug archive")
+            } catch (t: Throwable) {
+                exportError.value = t.message ?: "Archive export failed"
+            } finally {
+                exporting.value = false
+            }
+        }
+    }
+
+    /** Debug archive upload (item 1): ZIP into the developer-share queue. */
+    fun uploadDebugArchive() {
+        if (exporting.value) return
+        exporting.value = true
+        viewModelScope.launch {
+            try {
+                val enabled = settings.feedbackUploadEnabled.first()
+                if (!enabled) {
+                    notice.value = "Turn on “Send pictures…” in Settings first — nothing was queued."
+                    return@launch
+                }
+                val zip = buildDebugArchive()
+                repository.enqueueArchive(zip, documentId)
+                notice.value = "Debug archive queued — see Settings for upload status."
+            } catch (t: Throwable) {
+                exportError.value = t.message ?: "Archive upload failed"
+            } finally {
+                exporting.value = false
+            }
+        }
+    }
+
+    private suspend fun buildDebugArchive(): File = withContext(Dispatchers.IO) {
+        val title = document.value?.title ?: repository.getDocument(documentId)?.title
+            ?: DocumentsRepository.defaultTitle()
+        val doc = repository.getDocument(documentId)
+        val default = settings.filterDefault.first()
+        val entries = repository.getPages(documentId).map { page ->
+            val raw = files.originalFile(documentId, page.id).takeIf { it.exists() }
+            val stored = Images.bounds(File(page.filePath)) ?: (0 to 0)
+            DebugArchive.Entry(
+                pageId = page.id,
+                position = page.position,
+                pageFile = File(page.filePath),
+                rawFile = raw,
+                imageWidth = page.imageWidth,
+                imageHeight = page.imageHeight,
+                storedWidth = stored.first,
+                storedHeight = stored.second,
+                autoCorners = PageCorners.decode(page.autoCorners),
+                refinedCorners = PageCorners.decode(page.refinedCorners),
+                userCorners = PageCorners.decode(page.userCorners),
+                cornerSchema = page.cornerSchema,
+                filterId = ScanFilter.effective(page.filter, doc?.filter, default).id,
+            )
+        }
+        val out = File(
+            files.exportsDir,
+            "${io.github.alexeygrigorev.openscan.util.safeFileName(title)}-debug.zip",
+        )
+        FileOutputStream(out).use { stream ->
+            DebugArchive.build(
+                entries = entries.ifEmpty { error("No pages to export") },
+                documentTitle = title,
+                appVersion = appVersion,
+                deviceModel = android.os.Build.MODEL ?: "unknown",
+                exportedAt = System.currentTimeMillis(),
+                out = stream,
+            )
+        }
+        return@withContext out
+    }
+
+    /** Copies the ready PDF to the user's SAF destination; confirms inline. */
+    fun saveExportTo(destination: android.net.Uri) {
+        val source = exportReady.value ?: return
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    appContext.contentResolver.openOutputStream(destination)?.use { out ->
+                        source.inputStream().use { it.copyTo(out) }
+                    } ?: error("Could not open destination")
+                }
+                notice.value = "PDF saved."
+            } catch (t: Throwable) {
+                exportError.value = t.message ?: "Save failed"
             }
         }
     }
@@ -180,24 +332,19 @@ class DocumentViewModel(
             try {
                 val title = document.value?.title ?: DocumentsRepository.defaultTitle()
                 val pageFiles = collectPageFiles()
-                val out = if (pageFiles.size == 1) {
+                if (pageFiles.size == 1) {
                     val image = files.sharedImageFile(title)
                     withContext(Dispatchers.IO) {
                         JpegExporter.exportSingle(pageFiles.first(), FileOutputStream(image))
                     }
-                    shareType.value = "image/jpeg"
-                    shareLabel.value = "Share image"
-                    image
+                    shareRequest.value = ShareRequest(image, "image/jpeg", "Share image")
                 } else {
                     val zip = files.sharedZipFile(title)
                     withContext(Dispatchers.IO) {
                         JpegExporter.exportZip(pageFiles, FileOutputStream(zip))
                     }
-                    shareType.value = "application/zip"
-                    shareLabel.value = "Share images"
-                    zip
+                    shareRequest.value = ShareRequest(zip, "application/zip", "Share images")
                 }
-                shareFile.value = out
             } catch (t: Throwable) {
                 exportError.value = t.message ?: "JPEG export failed"
             } finally {
@@ -212,10 +359,6 @@ class DocumentViewModel(
             .map { File(it.filePath) }
             .filter { it.exists() }
             .ifEmpty { error("No pages to export") }
-
-    fun consumeShareFile() {
-        shareFile.value = null
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -230,10 +373,12 @@ fun DocumentScreen(
     val pages by viewModel.pages.collectAsState()
     val exporting by viewModel.exporting.collectAsState()
     val exportError by viewModel.exportError.collectAsState()
-    val shareFile by viewModel.shareFile.collectAsState()
-    val shareType by viewModel.shareType.collectAsState()
-    val shareLabel by viewModel.shareLabel.collectAsState()
+    val exportReady by viewModel.exportReady.collectAsState()
+    val shareRequest by viewModel.shareRequest.collectAsState()
+    val notice by viewModel.notice.collectAsState()
     val ocrText by viewModel.ocrText.collectAsState()
+    val appFilterDefault by viewModel.appFilterDefault.collectAsState()
+    val developerMode by viewModel.developerMode.collectAsState()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -242,12 +387,29 @@ fun DocumentScreen(
     var deletingPage by remember { mutableStateOf<PageEntity?>(null) }
     var reordering by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    var filterPickerOpen by remember { mutableStateOf(false) }
+
+    // Storage-access save-as for the ready PDF (item 4).
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        if (uri != null) viewModel.saveExportTo(uri)
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(document?.title ?: "", maxLines = 1) },
+                // Item 7: the title is the rename affordance.
+                title = {
+                    Text(
+                        document?.title ?: "",
+                        maxLines = 1,
+                        modifier = Modifier.clickable(
+                            onClick = { renaming = true },
+                        ),
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -285,9 +447,43 @@ fun DocumentScreen(
                                     enabled = pages.size > 1,
                                 )
                                 DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            "Enhancement: ${
+                                            ScanFilter.fromId(document?.filter).let {
+                                                if (document?.filter == null) {
+                                                    "Default (${ScanFilter.fromId(appFilterDefault).title})"
+                                                } else {
+                                                    it.title
+                                                }
+                                            }
+                                            }"
+                                        )
+                                    },
+                                    onClick = { menuOpen = false; filterPickerOpen = true },
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Rename") },
                                     onClick = { menuOpen = false; renaming = true },
                                 )
+                                if (developerMode) {
+                                    DropdownMenuItem(
+                                        text = { Text("Export debug archive") },
+                                        onClick = {
+                                            menuOpen = false
+                                            viewModel.exportDebugArchive()
+                                        },
+                                        enabled = !exporting && pages.isNotEmpty(),
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Upload debug archive") },
+                                        onClick = {
+                                            menuOpen = false
+                                            viewModel.uploadDebugArchive()
+                                        },
+                                        enabled = !exporting && pages.isNotEmpty(),
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text("Delete document") },
                                     onClick = { menuOpen = false; deletingDocument = true },
@@ -318,6 +514,7 @@ fun DocumentScreen(
                     val index = pages.indexOf(page)
                     PageRow(
                         page = page,
+                        filter = ScanFilter.effective(page.filter, document?.filter, appFilterDefault),
                         reordering = reordering,
                         canMoveUp = index > 0,
                         canMoveDown = index < pages.lastIndex,
@@ -349,17 +546,63 @@ fun DocumentScreen(
         }
     }
 
-    // Hand the freshly exported file to the system share sheet.
-    LaunchedEffect(shareFile) {
-        val file = shareFile ?: return@LaunchedEffect
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        val send = Intent(Intent.ACTION_SEND).apply {
-            type = shareType
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    // Hand an explicit share request to the system share sheet.
+    LaunchedEffect(shareRequest) {
+        val request = shareRequest ?: return@LaunchedEffect
+        runCatching { PdfActions.share(context, request.file, request.mimeType, request.label) }
+        viewModel.consumeShareRequest()
+    }
+
+    // One-shot notices (saved-to confirmation, archive queued, …).
+    LaunchedEffect(notice) {
+        notice?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeNotice()
         }
-        runCatching { context.startActivity(Intent.createChooser(send, shareLabel)) }
-        viewModel.consumeShareFile()
+    }
+
+    // The finished PDF and its actions (item 4): Share, Print, Open, Save.
+    exportReady?.let { pdf ->
+        val title = document?.title ?: DocumentsRepository.defaultTitle()
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissExportReady() },
+            title = { Text("PDF ready") },
+            text = { Text("${safeFileName(title)}.pdf — ${pages.size} page${if (pages.size == 1) "" else "s"}.") },
+            confirmButton = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = {
+                        viewModel.shareRequest.value =
+                            DocumentViewModel.ShareRequest(pdf, "application/pdf", "Share PDF")
+                    }) { Text("Share") }
+                    TextButton(onClick = {
+                        runCatching {
+                            PdfActions.print(context, pdf, safeFileName(title))
+                        }
+                    }) { Text("Print") }
+                    TextButton(onClick = {
+                        runCatching {
+                            PdfActions.openWith(context, pdf)
+                        }
+                    }) { Text("Open with…") }
+                    TextButton(onClick = {
+                        saveLauncher.launch("${safeFileName(title)}.pdf")
+                    }) { Text("Save") }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissExportReady() }) { Text("Close") }
+            },
+        )
+    }
+
+    if (filterPickerOpen) {
+        FilterPickerDialog(
+            title = "Document enhancement",
+            selectedId = document?.filter,
+            defaultLabel = ScanFilter.fromId(appFilterDefault).title,
+            onPick = { id -> viewModel.setDocumentFilter(id) },
+            onDismiss = { filterPickerOpen = false },
+        )
     }
 
     val currentDocument = document
@@ -444,6 +687,7 @@ fun DocumentScreen(
 @Composable
 private fun PageRow(
     page: PageEntity,
+    filter: ScanFilter,
     reordering: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
@@ -459,6 +703,7 @@ private fun PageRow(
         leadingContent = {
             PageThumbnail(
                 filePath = page.filePath,
+                filter = filter,
                 modifier = Modifier
                     .width(72.dp)
                     .height(56.dp),
@@ -495,10 +740,15 @@ private fun PageRow(
 }
 
 @Composable
-private fun PageThumbnail(filePath: String, modifier: Modifier = Modifier) {
-    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = filePath) {
+private fun PageThumbnail(filePath: String, filter: ScanFilter, modifier: Modifier = Modifier) {
+    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = filePath, key2 = filter) {
         value = withContext(Dispatchers.IO) {
-            Images.decodeScaled(File(filePath), maxDim = 512)
+            val decoded = Images.decodeScaled(File(filePath), maxDim = 512) ?: return@withContext null
+            if (filter == ScanFilter.ORIGINAL) {
+                decoded
+            } else {
+                ScanFilters.apply(decoded, filter)?.also { decoded.recycle() } ?: decoded
+            }
         }
     }
     val current = bitmap

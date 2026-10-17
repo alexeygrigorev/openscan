@@ -169,6 +169,9 @@ class AppContainer(context: Context) {
         ""
     }
 
+    /** Version label for exports and the debug-archive markup. */
+    val appVersion: String get() = appVersionName()
+
     private fun isDebuggableInstall(): Boolean =
         (appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 }

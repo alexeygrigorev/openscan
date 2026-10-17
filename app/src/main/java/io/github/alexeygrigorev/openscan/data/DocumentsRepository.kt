@@ -185,6 +185,11 @@ class DocumentsRepository(
         feedbackUploader.retryNow()
     }
 
+    /** Debug-archive upload into the developer-share queue (item 1). */
+    suspend fun enqueueArchive(archiveZip: java.io.File, documentId: Long?) {
+        feedbackUploader.enqueueArchive(archiveZip, documentId)
+    }
+
     /** Flushes due uploads (app start, toggle re-enabled). */
     fun flushUploads() {
         feedbackUploader.drain()

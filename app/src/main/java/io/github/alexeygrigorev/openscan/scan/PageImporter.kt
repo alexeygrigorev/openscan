@@ -36,6 +36,14 @@ object Images {
         return sample
     }
 
+    /** Cheap bounds-only decode: pixel dimensions without allocating pixels. */
+    fun bounds(source: File): Pair<Int, Int>? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(source.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        return bounds.outWidth to bounds.outHeight
+    }
+
     fun saveJpeg(bitmap: Bitmap, dest: File, quality: Int = 93) {
         FileOutputStream(dest).use { out ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,17 +40,24 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.alexeygrigorev.openscan.data.DocumentsRepository
 import io.github.alexeygrigorev.openscan.data.PageEntity
+import io.github.alexeygrigorev.openscan.data.SettingsRepository
 import io.github.alexeygrigorev.openscan.scan.Images
 import io.github.alexeygrigorev.openscan.scan.PageOcr
+import io.github.alexeygrigorev.openscan.scan.ScanFilter
+import io.github.alexeygrigorev.openscan.scan.ScanFilters
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class EditViewModel(
     val pageId: Long,
     private val repository: DocumentsRepository,
+    private val settings: SettingsRepository,
     private val appContext: Context,
 ) : ViewModel() {
 
@@ -57,12 +65,28 @@ class EditViewModel(
     val busy = MutableStateFlow(false)
     val ocrText = MutableStateFlow<String?>(null)
 
+    /** Owning document's filter (page default when the page has no override). */
+    val documentFilter: StateFlow<String?> = MutableStateFlow(null)
+
+    /** App-wide enhancement default. */
+    val appFilterDefault: StateFlow<String> = settings.filterDefault
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ScanFilter.DEFAULT.id,
+        )
+
     init {
         reload()
     }
 
     fun reload() {
-        viewModelScope.launch { page.value = repository.getPage(pageId) }
+        viewModelScope.launch {
+            val loaded = repository.getPage(pageId)
+            page.value = loaded
+            (documentFilter as MutableStateFlow).value =
+                loaded?.let { repository.getDocument(it.documentId)?.filter }
+        }
     }
 
     /** Bakes a 90° clockwise rotation into the stored JPEG, then reloads. */
@@ -94,6 +118,15 @@ class EditViewModel(
             onDeleted()
         }
     }
+
+    /** Per-page enhancement override (item 6); also remembered as default. */
+    fun setPageFilter(filterId: String?) {
+        viewModelScope.launch {
+            repository.setPageFilter(pageId, filterId)
+            if (filterId != null) settings.setFilterDefault(filterId)
+            page.value = repository.getPage(pageId)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,7 +135,11 @@ fun EditScreen(viewModel: EditViewModel, onBack: () -> Unit) {
     val page by viewModel.page.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val ocrText by viewModel.ocrText.collectAsState()
+    val docFilter by viewModel.documentFilter.collectAsState()
+    val appDefault by viewModel.appFilterDefault.collectAsState()
     var confirmingDelete by remember { mutableStateOf(false) }
+    var filterPickerOpen by remember { mutableStateOf(false) }
+    val effective = ScanFilter.effective(page?.filter, docFilter, appDefault)
 
     Scaffold(
         topBar = {
@@ -114,6 +151,9 @@ fun EditScreen(viewModel: EditViewModel, onBack: () -> Unit) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { filterPickerOpen = true }) {
+                        Icon(Icons.Filled.Tune, contentDescription = "Enhancement: ${effective.title}")
+                    }
                     IconButton(onClick = { viewModel.rotate() }, enabled = !busy) {
                         Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate 90 degrees")
                     }
@@ -137,9 +177,23 @@ fun EditScreen(viewModel: EditViewModel, onBack: () -> Unit) {
             if (current == null) {
                 CircularProgressIndicator()
             } else {
-                PageCanvas(filePath = current.filePath, modifier = Modifier.fillMaxSize())
+                PageCanvas(
+                    filePath = current.filePath,
+                    filter = effective,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
+    }
+
+    if (filterPickerOpen) {
+        FilterPickerDialog(
+            title = "Page enhancement",
+            selectedId = page?.filter,
+            defaultLabel = ScanFilter.effective(null, docFilter, appDefault).title,
+            onPick = { id -> viewModel.setPageFilter(id) },
+            onDismiss = { filterPickerOpen = false },
+        )
     }
 
     if (confirmingDelete) {
@@ -179,11 +233,16 @@ fun EditScreen(viewModel: EditViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun PageCanvas(filePath: String, modifier: Modifier = Modifier) {
-    // Re-decodes whenever the file path changes (e.g. after a rotation).
-    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = filePath) {
+private fun PageCanvas(filePath: String, filter: ScanFilter, modifier: Modifier = Modifier) {
+    // Re-decodes whenever the file path or filter changes.
+    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = filePath, key2 = filter) {
         value = withContext(Dispatchers.IO) {
-            Images.decodeScaled(File(filePath), maxDim = 2048)
+            val decoded = Images.decodeScaled(File(filePath), maxDim = 2048) ?: return@withContext null
+            if (filter == ScanFilter.ORIGINAL) {
+                decoded
+            } else {
+                ScanFilters.apply(decoded, filter)?.also { decoded.recycle() } ?: decoded
+            }
         }
     }
     val current = bitmap

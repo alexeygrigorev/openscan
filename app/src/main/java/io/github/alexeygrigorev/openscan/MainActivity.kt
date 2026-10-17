@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
         // One update check per launch; the banner and the settings screen both
         // observe the same app-scoped answer.
         container.updateMonitor.checkAtLaunch()
+        // Flush due developer-share uploads (queued while offline or dead).
+        container.repository.flushUploads()
         setContent {
             OpenScanTheme {
                 OpenScanNavHost(container)
@@ -83,7 +85,7 @@ fun OpenScanNavHost(container: AppContainer) {
 
         composable(Routes.SETTINGS) {
             SettingsScreen(
-                viewModel = viewModel { SettingsViewModel(container.settings) },
+                viewModel = viewModel { SettingsViewModel(container.settings, container.repository) },
                 updateMonitor = container.updateMonitor,
                 onBack = { navController.popBackStack() },
             )
@@ -132,7 +134,10 @@ fun OpenScanNavHost(container: AppContainer) {
             val documentId = entry.arguments?.getLong("documentId") ?: return@composable
             DocumentScreen(
                 viewModel = viewModel(key = "document-$documentId") {
-                    DocumentViewModel(documentId, container.repository, container.files, appContext)
+                    DocumentViewModel(
+                        documentId, container.repository, container.files,
+                        container.settings, container.appVersion, appContext,
+                    )
                 },
                 onEditPage = { pageId -> navController.navigate(Routes.edit(pageId)) },
                 onAddPages = { navController.navigate(Routes.capture(documentId)) },
@@ -147,7 +152,7 @@ fun OpenScanNavHost(container: AppContainer) {
             val pageId = entry.arguments?.getLong("pageId") ?: return@composable
             EditScreen(
                 viewModel = viewModel(key = "edit-$pageId") {
-                    EditViewModel(pageId, container.repository, appContext)
+                    EditViewModel(pageId, container.repository, container.settings, appContext)
                 },
                 onBack = { navController.popBackStack() },
             )
