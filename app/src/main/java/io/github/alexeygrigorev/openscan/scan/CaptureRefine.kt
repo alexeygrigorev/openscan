@@ -80,8 +80,11 @@ object CaptureRefine {
 
     /**
      * Pure candidate selection: the first plausible quad in detector order
-     * (fresh, second attempt, live), otherwise the highest-scoring fallback,
-     * otherwise null. Unit-tested with synthetic quads.
+     * (fresh, second attempt, live) — except a near-frame winner yields to a
+     * plausible non-frame live quad (item 12: a full-res detect that gives up
+     * to the frame while live saw a solid inner quad is the desk-merge
+     * failure mode, not a full-bleed document). Otherwise the highest-scoring
+     * fallback, otherwise null. Unit-tested with synthetic quads.
      */
     fun pickBest(
         initial: FloatArray?,
@@ -95,6 +98,12 @@ object CaptureRefine {
             if (candidate != null &&
                 QuadPlausibility.check(candidate, frameWidth, frameHeight).plausible
             ) {
+                if (QuadPlausibility.isFullBleed(candidate, frameWidth, frameHeight) &&
+                    initial != null && !QuadPlausibility.isFullBleed(initial, frameWidth, frameHeight) &&
+                    QuadPlausibility.check(initial, frameWidth, frameHeight).plausible
+                ) {
+                    return initial
+                }
                 return candidate
             }
         }

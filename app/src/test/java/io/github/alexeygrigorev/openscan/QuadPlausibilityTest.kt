@@ -105,8 +105,31 @@ class QuadPlausibilityTest {
             (w - 1).toFloat(), (h - 1).toFloat(),
             0f, (h - 1).toFloat(),
         )
+        // A perfect full-bleed read is the right crop, not a flag (item 12).
         val verdict = QuadPlausibility.check(frame, w, h)
+        assertTrue(verdict.reasons.toString(), verdict.plausible)
+    }
+
+    @Test
+    fun `full-bleed classification follows area`() {
+        assertTrue(
+            QuadPlausibility.isFullBleed(
+                floatArrayOf(0f, 0f, 999f, 0f, 999f, 1399f, 0f, 1399f), w, h
+            )
+        )
+        assertFalse(QuadPlausibility.isFullBleed(goodQuad(), w, h))
+    }
+
+    @Test
+    fun `small border-touching quad still flags on-border`() {        val small = floatArrayOf(
+            0f, 0f,
+            400f, 0f,
+            400f, 500f,
+            0f, 500f,
+        )
+        val verdict = QuadPlausibility.check(small, w, h)
         assertTrue(verdict.reasons.contains("on-border"))
+        assertFalse(verdict.plausible)
     }
 
     @Test

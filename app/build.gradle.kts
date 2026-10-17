@@ -38,14 +38,19 @@ android {
         // OpenCV and the ML Kit OCR pipeline ship x86/x86_64 libs for
         // emulators; packaged on a real-device APK they triple its size
         // (~170MB native across four ABIs vs ~55MB on the two ARM ABIs).
-        // Every phone that can run this app is arm64 or armv7. Comment this
-        // out locally if you need an x86_64 emulator build.
+        // Every phone that can run this app is arm64 or armv7.
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 
     buildTypes {
+        debug {
+            // Emulators are typically x86_64; allow running debug/androidTest on emulators
+            ndk {
+                abiFilters.add("x86_64")
+            }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

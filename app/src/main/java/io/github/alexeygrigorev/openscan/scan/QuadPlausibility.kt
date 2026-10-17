@@ -33,6 +33,14 @@ object QuadPlausibility {
     /** A corner within this frame fraction of an edge counts as "on border". */
     const val BORDER_FRAC = 0.015
 
+    /**
+     * Quads covering this much of the frame (or more) are full-bleed: the
+     * document overflows the photo, so border-touching corners are expected
+     * and the frame itself is the right crop — not a flag (item 12: 2026-10-17
+     * uploads are almost all full-bleed pages, all correctly detected).
+     */
+    const val FULL_BLEED_FRAC = 0.90
+
     data class Verdict(
         /** True when nothing is wrong with the quad. */
         val plausible: Boolean,
@@ -78,7 +86,9 @@ object QuadPlausibility {
             x <= BORDER_FRAC * frameWidth || x >= (1 - BORDER_FRAC) * frameWidth ||
                 y <= BORDER_FRAC * frameHeight || y >= (1 - BORDER_FRAC) * frameHeight
         }
-        if (onBorder >= 3) reasons.add("on-border")
+        // Full-bleed pages touch the border by construction — flagging them
+        // only cries wolf (item 12). Small border-touching quads stay suspect.
+        if (onBorder >= 3 && areaFrac < FULL_BLEED_FRAC) reasons.add("on-border")
 
         // Ranking score: big dump for hard failures, small dings per flag,
         // area as the tiebreak (a bigger plausible read beats a sliver).
@@ -86,7 +96,7 @@ object QuadPlausibility {
         if (hardFail) score -= 10.0
         score -= 0.1 * badAngles
         if (aspect > MAX_ASPECT) score -= 0.1
-        if (onBorder >= 3) score -= 0.1
+        if (onBorder >= 3 && areaFrac < FULL_BLEED_FRAC) score -= 0.1
         return Verdict(
             plausible = reasons.isEmpty(),
             hardFail = hardFail,
@@ -157,6 +167,17 @@ object QuadPlausibility {
     /** Tolerance for [quadsEqual]: 0.4% of the frame diagonal. */
     fun matchEps(frameWidth: Int, frameHeight: Int): Float =
         (0.004 * hypot(frameWidth.toDouble(), frameHeight.toDouble())).toFloat()
+
+    /** Frame-area fraction covered by [quad] (0 for garbage input). */
+    fun areaFrac(quad: FloatArray, frameWidth: Int, frameHeight: Int): Double {
+        if (quad.size != 8 || frameWidth <= 0 || frameHeight <= 0) return 0.0
+        val pts = Array(4) { i -> quad[2 * i].toDouble() to quad[2 * i + 1].toDouble() }
+        return abs(shoelace(pts)) / 2.0 / (frameWidth.toDouble() * frameHeight)
+    }
+
+    /** True for near-full-frame quads (nothing left to crop). */
+    fun isFullBleed(quad: FloatArray, frameWidth: Int, frameHeight: Int): Boolean =
+        areaFrac(quad, frameWidth, frameHeight) >= FULL_BLEED_FRAC
 
     /** Aspect range check shared by tests: longest/shortest edge. */
     fun aspectOf(quad: FloatArray): Double {

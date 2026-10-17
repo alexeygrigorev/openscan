@@ -37,8 +37,23 @@ class CaptureRefinePickTest {
     @Test
     fun `implausible fresh and second fall back to the live quad`() {
         val live = good()
-        val picked = CaptureRefine.pickBest(live, sliver(), frameGrab(), w, h)
+        val picked = CaptureRefine.pickBest(live, sliver(), sliver(), w, h)
         assertEquals(live.toList(), picked?.toList())
+    }
+
+    @Test
+    fun `near-frame winner yields to a solid live inner quad`() {
+        // Item 12 desk-merge guard: full-res gives up to the frame while
+        // live saw the document — keep the live quad.
+        val live = good()
+        val picked = CaptureRefine.pickBest(live, frameGrab(), frameGrab(), w, h)
+        assertEquals(live.toList(), picked?.toList())
+    }
+
+    @Test
+    fun `near-frame winner stands when live agrees`() {
+        val picked = CaptureRefine.pickBest(frameGrab(), frameGrab(), frameGrab(), w, h)
+        assertEquals(frameGrab().toList(), picked?.toList())
     }
 
     @Test
