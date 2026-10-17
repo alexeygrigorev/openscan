@@ -23,11 +23,13 @@ set -euo pipefail
 DIR="${PRIVATE_DIR:-$HOME/prod/openscan-eval/feedback-2026-10-17}"
 RUN=""
 DEVICE="${DEVICE:-emulator-5556}"
+REQUIRE_PASS=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --dir) DIR="$2"; shift 2 ;;
     --run) RUN="$2"; shift 2 ;;
     --device) DEVICE="$2"; shift 2 ;;
+    --require-pass) REQUIRE_PASS=1; shift 1 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -71,9 +73,10 @@ rm -rf "$OUT"; mkdir -p "$OUT"
 if [ -d "$OUT/eval" ]; then mv "$OUT"/eval/* "$OUT/"; rmdir "$OUT/eval"; fi
 
 echo "== scores"
-python3 - "$OUT/results.json" <<'EOF'
+python3 - "$OUT/results.json" "$REQUIRE_PASS" <<'EOF'
 import json, sys
 results = json.load(open(sys.argv[1]))["images"]
+require_pass = sys.argv[2] == "1"
 scored = [r for r in results if "meanError" in r]
 failed = [r["file"] for r in results if not r.get("ok")]
 within = [r for r in scored if r.get("withinTolerance")]
@@ -88,5 +91,9 @@ if scored:
     print(f"worst: {worst['file']} err={worst['meanError']*100:.3f}%")
 if failed:
     print("no-quad:", ", ".join(failed))
+if require_pass:
+    if failed or (scored and len(within) != len(scored)):
+        print("FAIL: evaluation did not achieve 100% pass rate", file=sys.stderr)
+        sys.exit(1)
 EOF
 echo "overlays to verify (PRIVATE, never commit): $OUT/overlays/"

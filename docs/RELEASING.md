@@ -20,6 +20,7 @@ derives both Android version attributes from the `vX.Y.Z` tags:
 | `v0.2.2`    | *(empty — workflow failed pre-publish, tag never reused)* | 6 |
 | `v0.2.3`    | `0.2.3`     | 7           |
 | `v0.2.4`    | `0.2.4`     | 8           |
+| `v0.2.5`    | `0.2.5`     | 9           |
 
 - `versionName` = the tag without its leading `v`. The published foss APK
   appends the flavor suffix, so its user-visible versionName is
@@ -120,7 +121,21 @@ with is the **upload key**. That is expected and good:
 CI (`.github/workflows/ci.yml`) runs unit tests and assembles the play and
 foss debug APKs on every push to main and every PR. Release from a green main.
 
-### 2. Tag the current main head
+### 2. Run the required gold regression evaluation check
+
+Before tagging, run the gold-standard corner evaluation check locally against
+the private gold corpus (`~/prod/openscan-eval/gold`):
+
+```bash
+scripts/feedback-eval/run.sh --dir ~/prod/openscan-eval/gold --require-pass
+```
+
+The check verifies the full detector and post-capture refinement against
+hand-checked ground-truth corner annotations. The release gate requires 100%
+of gold cases to be within 1% diagonal tolerance with 0 failures (`--require-pass`
+exits with code 1 otherwise).
+
+### 3. Tag the current main head
 
 ```bash
 git checkout main
@@ -133,7 +148,7 @@ The tag must point **exactly at the current main head** — the workflow's
 `authorize` job verifies `refs/tags/<tag>^{commit} == <dispatched main
 HEAD>` and fails otherwise.
 
-### 3. Run the publish workflow
+### 4. Run the publish workflow
 
 ```bash
 gh workflow run publish-release.yml --ref main -f release_tag=v0.2.0
@@ -143,7 +158,7 @@ or via the UI: Actions → "Publish release" → Run workflow → main →
 `v0.2.0`. Re-running the same tag after it already published is rejected by
 design.
 
-### 4. What the workflow does
+### 5. What the workflow does
 
 | Job        | Permissions      | What it does |
 | ---------- | ---------------- | ------------ |
@@ -151,7 +166,7 @@ design.
 | `build`    | read only        | Checks out the authorized SHA, re-confirms HEAD and the tag, derives the version from the tag (self-test + `--ref`), assembles the signed foss release APK (`assembleFossRelease`) with the four signing secrets. Validates the APK's version metadata against the derived code/name with `aapt2` and requires its signer certificate to match `ANDROID_RELEASE_CERT_SHA256`. Uploads the renamed artifact. |
 | `publish`  | **write**        | The only job with `contents: write`. Re-verifies, against the remote, that main has not moved, the tag still resolves to the authorized commit, and the release still does not exist (race protection). Then downloads the artifacts from this exact run and creates the GitHub release with `--verify-tag --generate-notes`. |
 
-### 5. Collect the artifacts
+### 6. Collect the artifacts
 
 The GitHub Release at `https://github.com/alexeygrigorev/openscan/releases/tag/vX.Y.Z`
 carries exactly one installable artifact:
