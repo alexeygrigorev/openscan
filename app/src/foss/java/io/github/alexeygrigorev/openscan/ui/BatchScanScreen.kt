@@ -11,11 +11,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.SurfaceOrientedMeteringPointFactory
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -23,6 +25,7 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +50,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material3.AlertDialog
@@ -70,6 +74,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -102,6 +107,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
@@ -227,7 +233,9 @@ private fun BatchCapturePhase(
     val detection by viewModel.detection.collectAsState()
     val pageCount by viewModel.pageCount.collectAsState()
     val snapTick by viewModel.snapTick.collectAsState()
+    val autoOn by viewModel.autoCaptureEnabled.collectAsState(initial = false)
     var flash by remember { mutableStateOf(false) }
+    val focusScope = rememberCoroutineScope()
 
     LaunchedEffect(snapTick) {
         if (snapTick > 0) {
@@ -291,6 +299,31 @@ private fun BatchCapturePhase(
                         }
                     },
                 )
+            }
+
+            // Focus lock before every shot (item 10): meter AF+AE on the
+            // document centre, hold still briefly, then fire. Falls through
+            // to an immediate shot when focusing is unavailable.
+            viewModel.focusAndShoot = { shoot ->
+                val cam = camera
+                if (cam == null) {
+                    shoot()
+                } else {
+                    focusScope.launch {
+                        try {
+                            val factory = SurfaceOrientedMeteringPointFactory(1f, 1f)
+                            val action = FocusMeteringAction.Builder(
+                                factory.createPoint(0.5f, 0.5f),
+                                FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE,
+                            ).setAutoCancelDuration(2, java.util.concurrent.TimeUnit.SECONDS)
+                                .build()
+                            cam.cameraControl.startFocusAndMetering(action)
+                            delay(450)
+                        } catch (_: Throwable) {
+                        }
+                        shoot()
+                    }
+                }
             }
 
             camera = provider.bindToLifecycle(
@@ -361,8 +394,10 @@ private fun BatchCapturePhase(
                 }
             }
 
-            // Status chip.
+            // Status chip: with auto-capture off the outline is only a hint.
             val status = when {
+                !autoOn && (det == null || det.quad == null) -> "Looking for a document…"
+                !autoOn -> "Tap Take photo to capture"
                 det == null || det.quad == null -> "Looking for a document…"
                 det.stable -> "Capturing…"
                 else -> "Hold steady…"
@@ -396,7 +431,7 @@ private fun BatchCapturePhase(
                 }
             }
 
-            // Bottom controls: manual shutter + Stop.
+            // Bottom controls: large thumb-reachable shutter + Stop.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -404,8 +439,31 @@ private fun BatchCapturePhase(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedButton(onClick = { viewModel.requestCapture() }) {
-                    Text("Snap")
+                // Manual shutter (item 2): a standard large round shutter
+                // button with a camera icon, high-contrast on the black
+                // viewfinder, so a manual capture is one thumb tap away when
+                // auto-capture doesn't fire (or is switched off).
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(
+                        onClick = { viewModel.requestCapture() },
+                        modifier = Modifier
+                            .size(84.dp)
+                            .background(Color.White, CircleShape)
+                            .border(4.dp, Color(0xFF4CD964), CircleShape),
+                    ) {
+                        Icon(
+                            Icons.Filled.PhotoCamera,
+                            contentDescription = "Take photo",
+                            tint = Color.Black,
+                            modifier = Modifier.size(38.dp),
+                        )
+                    }
+                    Text(
+                        "Take photo",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
                 Button(
                     onClick = { viewModel.stop() },

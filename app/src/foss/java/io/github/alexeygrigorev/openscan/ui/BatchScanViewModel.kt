@@ -25,6 +25,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -112,6 +113,15 @@ class BatchScanViewModel(
     /** Set by the UI: fires the camera's ImageCapture use case. */
     var captureShutter: (() -> Unit)? = null
 
+    /**
+     * Set by the UI: runs autofocus metering, then invokes the given
+     * shoot block (item 10). Unset (tests, previews) shoots immediately.
+     */
+    var focusAndShoot: ((shoot: () -> Unit) -> Unit)? = null
+
+    /** The Settings auto-capture toggle (item 9) for the hint/status UI. */
+    val autoCaptureEnabled: Flow<Boolean> = settings.autoCaptureEnabled
+
     private val batchDir: File = File(context.cacheDir, "batch-capture").apply { mkdirs() }
     private var nextId = 1L
 
@@ -189,7 +199,13 @@ class BatchScanViewModel(
             return
         }
         lastCaptureAt = SystemClock.elapsedRealtime()
-        captureShutter?.invoke() ?: capturing.set(false)
+        val shoot = { captureShutter?.invoke() ?: capturing.set(false) }
+        // Focus lock first (item 10); without a UI hook shoot immediately.
+        try {
+            focusAndShoot?.invoke(shoot) ?: shoot()
+        } catch (_: Throwable) {
+            shoot()
+        }
     }
 
     /** Full-res upright still from ImageCapture; refined on the detect thread. */
@@ -306,7 +322,18 @@ class BatchScanViewModel(
     suspend fun thumbnail(page: CapturedPage): ImageBitmap? {
         thumbCache.get(page.id)?.let { return it }
         return withContext(Dispatchers.IO) {
-            renderPage(page, THUMB_MAX_DIM)?.asImageBitmap()?.also { thumbCache.put(page.id, it) }
+            // The review shows the same enhancement the export will embed.
+            val filter = io.github.alexeygrigorev.openscan.scan.ScanFilter.fromId(
+                runCatching { settings.filterDefault.first() }.getOrNull()
+            )
+            val rendered = renderPage(page, THUMB_MAX_DIM) ?: return@withContext null
+            val enhanced = if (filter == io.github.alexeygrigorev.openscan.scan.ScanFilter.ORIGINAL) {
+                rendered
+            } else {
+                io.github.alexeygrigorev.openscan.scan.ScanFilters.apply(rendered, filter)
+                    ?.also { rendered.recycle() } ?: rendered
+            }
+            enhanced.asImageBitmap().also { thumbCache.put(page.id, it) }
         }
     }
 
