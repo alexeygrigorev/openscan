@@ -45,7 +45,8 @@ echo "== device: $DEVICE"
 echo "== building"
 ./gradlew assembleFossDebug assembleFossDebugAndroidTest --console=plain -q
 APP="$REPO/app/build/outputs/apk/foss/debug/app-foss-debug.apk"
-TEST_APP="$REPO/app/build/outputs/apk/foss/debug/app-foss-debug-androidTest.apk"
+TEST_APP="$REPO/app/build/outputs/apk/androidTest/foss/debug/app-foss-debug-androidTest.apk"
+[ -f "$TEST_APP" ] || TEST_APP="$REPO/app/build/outputs/apk/foss/debug/app-foss-debug-androidTest.apk"
 unzip -tq "$APP" >/dev/null && unzip -tq "$TEST_APP" >/dev/null
 
 echo "== installing"
