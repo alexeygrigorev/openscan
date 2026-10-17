@@ -7,7 +7,10 @@
 #                      v3) signature scheme — the floor Android 11+ installs
 #                      and Play Console both expect.
 #
-#   --variant release  additionally requires the APK's signing-certificate
+#   --variant release  additionally requires the v1 (JAR) signature scheme
+#                      on top of v2/v3 — sideloaded release updates must
+#                      carry META-INF signatures as well as the v2 block —
+#                      and requires the APK's signing-certificate
 #                      SHA-256 to equal $ANDROID_RELEASE_CERT_SHA256
 #                      (comparison is colon/space-insensitive and
 #                      case-insensitive), so a wrong or debug keystore
@@ -235,6 +238,20 @@ main() {
     pass "signature scheme v2+ present (v2=$v2, v3=$v3)"
   else
     fail "no v2/v3 signature scheme in $APK — Android 11+ and Play require scheme v2 or v3"
+  fi
+
+  # --- v1 (JAR) scheme for release -------------------------------------------
+  # Release APKs ship v1 AND v2 (app/build.gradle.kts enables both on the
+  # release signing config): sideloaded updates must carry META-INF
+  # signatures as well as the v2 block.
+  if [[ "$VARIANT" == "release" ]]; then
+    local v1=false
+    grep -Eq 'Verified using v1 scheme( \([^)]*\))?: true' <<<"$verify_out" && v1=true
+    if [[ "$v1" == true ]]; then
+      pass "signature scheme v1 present"
+    else
+      fail "no v1 (JAR) signature scheme in $APK — release APKs must be signed with v1+v2"
+    fi
   fi
 
   # --- signer certificate ----------------------------------------------------

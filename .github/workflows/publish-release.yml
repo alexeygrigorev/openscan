@@ -190,13 +190,22 @@ jobs:
           VERSION_CODE: ${{ steps.version.outputs.code }}
           VERSION_NAME: ${{ steps.version.outputs.name }}
 
-      # Asserts scheme v2+ AND that the signer certificate SHA-256 equals
+      # Asserts scheme v1+v2 AND that the signer certificate SHA-256 equals
       # ANDROID_RELEASE_CERT_SHA256 — a wrong keystore fails here, before
       # anything is published.
       - name: Verify release APK signing identity
         run: scripts/check-apk-signing.sh --variant release --apk app/build/outputs/apk/foss/release/app-foss-release.apk
         env:
           ANDROID_RELEASE_CERT_SHA256: ${{ secrets.ANDROID_RELEASE_CERT_SHA256 }}
+
+      # AGP aligns before signing and apksigner does not check alignment,
+      # so verify it explicitly on the final artifact.
+      - name: Verify release APK page alignment
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c 4 app/build/outputs/apk/foss/release/app-foss-release.apk ||
+            { echo "::error::zipalign verification failed"; exit 1; }
+          echo "zipalign verification OK"
 
       - name: Rename the release APK
         run: |

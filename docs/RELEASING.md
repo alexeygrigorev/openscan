@@ -14,7 +14,9 @@ derives both Android version attributes from the `vX.Y.Z` tags:
 | ----------- | ----------- | ----------- |
 | `v0.1.0`    | `0.1.0`     | 1           |
 | `v0.1.1`    | `0.1.1`     | 2           |
-| `v0.2.0`    | `0.2.0`     | 3           |
+| `v0.1.2`    | `0.1.2`     | 3           |
+| `v0.2.0`    | `0.2.0`     | 4           |
+| `v0.2.1`    | `0.2.1`     | 5           |
 
 - `versionName` = the tag without its leading `v`. The published foss APK
   appends the flavor suffix, so its user-visible versionName is
@@ -191,9 +193,12 @@ apksigner verify --print-certs app-release.apk | grep 'SHA-256'
 then re-set `ANDROID_RELEASE_KEYSTORE_BASE64` and/or
 `ANDROID_RELEASE_CERT_SHA256` with `gh secret set`.
 
-**`build` fails: "no v2/v3 signature scheme"** — the APK was signed with
-only v1. Android 11+ and Play require scheme v2 or v3; check that
-`app/build.gradle.kts` does not disable `signingConfig` v2 schemes.
+**`build` fails: "no v1 (JAR) / no v2/v3 signature scheme"** — the release
+APK must carry v1 AND v2 (`isV1SigningEnabled` / `isV2SigningEnabled` on the
+release `signingConfig` in `app/build.gradle.kts`). Android 11+ and Play
+require scheme v2 or v3; the v1 requirement is ours, so sideloaded updates
+install on every PackageManager path. Check that nothing disables either
+scheme.
 
 **Local release build is unsigned** — expected: `app/build.gradle.kts`
 activates the release signing config only when
