@@ -79,6 +79,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -750,6 +751,16 @@ private fun PageEditor(
             if (bmp == null) {
                 CircularProgressIndicator()
             } else {
+                // Magnifier source: zoomed crop around the dragged corner,
+                // recomputed as the corner moves (cheap 260 px crop).
+                val frame = bmp
+                val loupeBitmap = remember(quad, dragCorner, frame) {
+                    if (dragCorner in 0..3) {
+                        cornerLoupe(frame, quad, dragCorner, page.frameWidth, page.frameHeight)
+                    } else {
+                        null
+                    }
+                }
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     val (scale, off) = fitTransform(
                         bmp.width, bmp.height,
@@ -787,6 +798,7 @@ private fun PageEditor(
                                         }
                                     },
                                     onDragEnd = { dragCorner = -1 },
+                                    onDragCancel = { dragCorner = -1 },
                                 )
                             },
                     ) {
@@ -803,6 +815,42 @@ private fun PageEditor(
                             val c = Offset(pts[i * 2], pts[i * 2 + 1])
                             drawCircle(color = Color.White, radius = 10.dp.toPx(), center = c)
                             drawCircle(color = Color(0xFF4CD964), radius = 7.dp.toPx(), center = c)
+                        }
+                    }
+                }
+                // Magnifier loupe (item 3): while a corner handle is dragged,
+                // a zoomed circular view around it with a crosshair, parked
+                // at the top so the finger never covers it.
+                val loupe = loupeBitmap
+                if (loupe != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 64.dp)
+                            .size(136.dp)
+                            .clip(CircleShape)
+                            .border(3.dp, Color.White, CircleShape)
+                            .background(Color.Black),
+                    ) {
+                        Image(
+                            bitmap = loupe.asImageBitmap(),
+                            contentDescription = "Magnified corner",
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val c = Offset(size.width / 2f, size.height / 2f)
+                            val arm = 30.dp.toPx()
+                            drawLine(
+                                Color(0xFF4CD964),
+                                Offset(c.x - arm, c.y), Offset(c.x + arm, c.y),
+                                strokeWidth = 3f,
+                            )
+                            drawLine(
+                                Color(0xFF4CD964),
+                                Offset(c.x, c.y - arm), Offset(c.x, c.y + arm),
+                                strokeWidth = 3f,
+                            )
                         }
                     }
                 }
@@ -886,9 +934,42 @@ private fun defaultQuad(w: Int, h: Int): FloatArray = floatArrayOf(
     w * 0.1f, h * 0.9f,
 )
 
+/**
+ * Loupe source (item 3): a ~260 px square crop of [frame] around [corner]
+ * (given in [frameW]×[frameH] page coordinates), magnified to a fixed
+ * 300 px wide bitmap. Returns null when the crop is impossible.
+ */
+private fun cornerLoupe(
+    frame: Bitmap,
+    quad: FloatArray,
+    corner: Int,
+    frameW: Int,
+    frameH: Int,
+): Bitmap? {
+    if (corner !in 0..3 || frameW <= 0 || frameH <= 0) return null
+    if (frame.width <= 0 || frame.height <= 0) return null
+    val cx = (quad[corner * 2] * frame.width / frameW).roundToInt()
+    val cy = (quad[corner * 2 + 1] * frame.height / frameH).roundToInt()
+    val half = 130
+    val size = half * 2
+    val left = (cx - half).coerceIn(0, max(0, frame.width - size))
+    val top = (cy - half).coerceIn(0, max(0, frame.height - size))
+    val w = min(size, frame.width - left)
+    val h = min(size, frame.height - top)
+    if (w <= 0 || h <= 0) return null
+    return runCatching {
+        val crop = Bitmap.createBitmap(frame, left, top, w, h)
+        if (w == 300 && h == 300) {
+            crop
+        } else {
+            Bitmap.createScaledBitmap(crop, 300, (300f * h / w).roundToInt().coerceAtLeast(1), true)
+                .also { if (it !== crop) crop.recycle() }
+        }
+    }.getOrNull()
+}
+
 /** Index of the quad corner closest to [pos] (view coordinates), else -1. */
-private fun nearestCorner(quad: FloatArray, pos: Offset, scale: Float, off: Offset): Int {
-    var best = -1
+private fun nearestCorner(quad: FloatArray, pos: Offset, scale: Float, off: Offset): Int {    var best = -1
     var bestDist = Float.MAX_VALUE
     for (i in 0 until 4) {
         val cx = quad[i * 2] * scale + off.x
