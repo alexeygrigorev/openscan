@@ -22,11 +22,21 @@ only if you turn it on:
 - every page you scan afterwards is uploaded once, in the background, to our
   storage (Amazon S3, region eu-west-1, reached over HTTPS) and automatically
   deleted after at most 30 days;
-- the upload carries no account identifier — just the image, the app version,
-  and whether automatic edge detection succeeded;
-- uploads are fire-and-forget: a failed upload is dropped, never queued,
-  never retried, and never blocks or interrupts scanning;
-- turning the switch off again stops all future uploads immediately.
+- each page upload is two files: the page JPEG and a JSON sidecar carrying
+  the app version, the device model, the effective enhancement filter, and
+  the training/eval corner triple (live-detected, post-capture-refined and
+  user-corrected corners with their coordinate-space size) — still no account
+  identifier of any kind;
+- uploads go through a durable on-device queue: failures survive process
+  death, retry automatically with backoff, and stay visible in Settings as
+  queued / uploading / uploaded / failed with a manual retry. Turning the
+  switch off pauses the queue immediately — nothing is sent until you turn
+  it back on;
+- developer mode (a separate Settings toggle) additionally offers a debug
+  archive export: a ZIP of the raw camera frames plus a markup.json with the
+  same corner data. It uploads only through the same queue, only while the
+  feedback switch is on, and only when you explicitly tap "Upload debug
+  archive".
 
 ## Permissions
 

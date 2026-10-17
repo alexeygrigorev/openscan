@@ -88,7 +88,8 @@ delegated to the OS scanner module).
 The only network feature is an explicit opt-in toggle in Settings —
 *"Send pictures to our servers so we can use them to improve our application"* —
 which is **off by default**. While it is off, nothing is ever transmitted, and
-uploads are fire-and-forget with no retry queue, so switching it off stops all
+pending uploads stay paused in a durable on-device queue with visible status
+(queued / uploading / uploaded / failed) and retry, so switching it off stops all
 transfers immediately. Opted-in uploads are used only to improve document
 detection and are deleted after 90 days. Verify the merged manifest yourself:
 

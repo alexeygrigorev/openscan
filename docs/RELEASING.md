@@ -17,6 +17,9 @@ derives both Android version attributes from the `vX.Y.Z` tags:
 | `v0.1.2`    | `0.1.2`     | 3           |
 | `v0.2.0`    | `0.2.0`     | 4           |
 | `v0.2.1`    | `0.2.1`     | 5           |
+| `v0.2.2`    | *(empty — workflow failed pre-publish, tag never reused)* | 6 |
+| `v0.2.3`    | `0.2.3`     | 7           |
+| `v0.2.4`    | `0.2.4`     | 8           |
 
 - `versionName` = the tag without its leading `v`. The published foss APK
   appends the flavor suffix, so its user-visible versionName is
