@@ -79,6 +79,8 @@ import io.github.alexeygrigorev.openscan.scan.PageOcr
 import io.github.alexeygrigorev.openscan.scan.PdfExporter
 import io.github.alexeygrigorev.openscan.scan.ScanFilter
 import io.github.alexeygrigorev.openscan.scan.ScanFilters
+import io.github.alexeygrigorev.openscan.util.formatCount
+import io.github.alexeygrigorev.openscan.util.formatFileSize
 import io.github.alexeygrigorev.openscan.util.formatPageCount
 import io.github.alexeygrigorev.openscan.util.safeFileName
 import java.io.File
@@ -239,7 +241,7 @@ class DocumentViewModel(
                 }
                 notice.value = buildString {
                     append("Re-detected ${formatPageCount(summary.attempted)}")
-                    append(": ${summary.cropsChanged} new crop${if (summary.cropsChanged == 1) "" else "s"}")
+                    append(": ${formatCount(summary.cropsChanged, "crop", qualifier = "new")}")
                     if (summary.flagged > 0) append(", ${summary.flagged} flagged — open pages to review")
                     if (summary.failed > 0) append(", ${summary.failed} failed")
                     if (summary.usedStoredPage > 0) {
@@ -285,7 +287,7 @@ class DocumentViewModel(
                 }
                 val zip = buildDebugArchive()
                 repository.enqueueArchive(zip, documentId)
-                notice.value = "Debug archive queued — see Settings for upload status."
+                notice.value = "Debug archive queued (${formatFileSize(zip)}) — see Settings for upload status."
             } catch (t: Throwable) {
                 exportError.value = t.message ?: "Archive upload failed"
             } finally {
@@ -345,7 +347,7 @@ class DocumentViewModel(
                         source.inputStream().use { it.copyTo(out) }
                     } ?: error("Could not open destination")
                 }
-                notice.value = "PDF saved."
+                notice.value = "PDF saved (${formatFileSize(source)})."
             } catch (t: Throwable) {
                 exportError.value = t.message ?: "Save failed"
             }
@@ -606,7 +608,7 @@ fun DocumentScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissExportReady() },
             title = { Text("PDF ready") },
-            text = { Text("${safeFileName(title)}.pdf — ${formatPageCount(pages.size)}.") },
+            text = { Text("${safeFileName(title)}.pdf — ${formatPageCount(pages.size)} (${formatFileSize(pdf)}).") },
             confirmButton = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = {
