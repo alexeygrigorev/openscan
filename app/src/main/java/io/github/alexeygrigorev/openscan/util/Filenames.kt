@@ -1,5 +1,6 @@
 package io.github.alexeygrigorev.openscan.util
 
+import java.text.Normalizer
 import java.util.Locale
 
 private val WINDOWS_RESERVED_NAMES = setOf(
@@ -8,23 +9,49 @@ private val WINDOWS_RESERVED_NAMES = setOf(
     "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
 )
 
+private val REDUNDANT_EXTENSIONS = listOf(
+    ".pdf", ".jpg", ".jpeg", ".png", ".zip",
+)
+
+private val COMBINING_MARK_TYPES = setOf(
+    Character.NON_SPACING_MARK.toInt(),
+    Character.COMBINING_SPACING_MARK.toInt(),
+    Character.ENCLOSING_MARK.toInt(),
+)
+
 /**
- * A document title must survive as a file name in share intents (PDF export),
- * so replace path separators and filesystem-hostile characters with spaces,
- * collapse whitespace, strip leading/trailing dots and hyphens, strip redundant
- * .pdf extensions, and escape Windows/FAT/MTP reserved device names (CON, PRN,
- * AUX, NUL, COM0-9, LPT0-9). Never returns an empty name.
+ * A document title must survive as a file name across share intents, exports
+ * (PDF, JPEG, ZIP), and cross-platform filesystems (Linux, Windows, FAT32/exFAT, MTP).
+ *
+ * Normalizes Unicode to NFC (so decomposed diacritics compose into valid letters),
+ * drops orphan combining marks, strips redundant image/export extensions (.pdf, .jpg,
+ * .jpeg, .png, .zip), replaces filesystem-hostile characters with spaces, collapses
+ * whitespace and dots (including space-dot combinations invalid on Windows), trims
+ * leading/trailing dots and hyphens, caps length at 80 characters, and escapes
+ * Windows/FAT/MTP reserved device names (CON, PRN, AUX, NUL, COM0-9, LPT0-9).
+ * Never returns an empty name.
  */
 fun safeFileName(title: String): String {
-    var stripped = title.trim()
-    while (stripped.endsWith(".pdf", ignoreCase = true)) {
-        stripped = stripped.dropLast(4).trimEnd(' ', '.')
+    var stripped = Normalizer.normalize(title.trim(), Normalizer.Form.NFC)
+    var changed = true
+    while (changed) {
+        changed = false
+        for (ext in REDUNDANT_EXTENSIONS) {
+            if (stripped.endsWith(ext, ignoreCase = true)) {
+                stripped = stripped.dropLast(ext.length).trimEnd(' ', '.')
+                changed = true
+                break
+            }
+        }
     }
 
     var cleaned = stripped
+        .filterNot { Character.getType(it.code) in COMBINING_MARK_TYPES }
         .map { if (it.isLetterOrDigit() || it in " ._-") it else ' ' }
         .joinToString("")
         .replace(Regex("\\s+"), " ")
+        .replace(Regex("\\s+\\."), ".")
+        .replace(Regex("\\.\\s+"), ".")
         .replace(Regex("\\.{2,}"), ".")
         .trim(' ', '.', '-')
         .take(80)

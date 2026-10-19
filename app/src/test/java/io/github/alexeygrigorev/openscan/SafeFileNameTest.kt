@@ -83,6 +83,46 @@ class SafeFileNameTest {
     }
 
     @Test
+    fun `strips redundant trailing image and archive extensions to prevent double extension`() {
+        assertEquals("Invoice", safeFileName("Invoice.jpg"))
+        assertEquals("Invoice", safeFileName("Invoice.JPG"))
+        assertEquals("Receipt", safeFileName("Receipt.jpeg"))
+        assertEquals("Receipt", safeFileName("Receipt.JPEG"))
+        assertEquals("Photo", safeFileName("Photo.png"))
+        assertEquals("Photo", safeFileName("Photo.PNG"))
+        assertEquals("Archive", safeFileName("Archive.zip"))
+        assertEquals("Archive", safeFileName("Archive.ZIP"))
+        assertEquals("scan", safeFileName("scan.jpg.pdf"))
+        assertEquals("scan", safeFileName("scan.pdf.jpg"))
+        assertEquals("doc", safeFileName("doc.zip.zip"))
+        assertEquals("jpg", safeFileName("jpg"))
+        assertEquals("png", safeFileName("png"))
+        assertEquals("zip", safeFileName("zip"))
+        assertEquals("CON_", safeFileName("CON.jpg"))
+        assertEquals("CON_", safeFileName("CON.zip"))
+    }
+
+    @Test
+    fun `normalizes decomposed unicode diacritics into precomposed canonical letters`() {
+        // NFD inputs (letter + combining mark) must compose to canonical NFC letters.
+        assertEquals("café", safeFileName("cafe\u0301"))
+        assertEquals("über", safeFileName("u\u0308ber"))
+        assertEquals("año", safeFileName("an\u0303o"))
+        assertEquals("résumé", safeFileName("re\u0301sume\u0301"))
+        assertEquals("façade", safeFileName("fac\u0327ade"))
+        assertEquals("naïve", safeFileName("nai\u0308ve"))
+        assertEquals("Český", safeFileName("C\u030Cesky\u0301"))
+        assertEquals("Документ_май", safeFileName("Документ_маи\u0306"))
+    }
+
+    @Test
+    fun `cleans whitespace surrounding dots to prevent invalid filenames on Windows and FAT`() {
+        assertEquals("draft.v2", safeFileName("draft .v2"))
+        assertEquals("report.2026", safeFileName("report. 2026"))
+        assertEquals("notes.txt", safeFileName("notes . txt"))
+    }
+
+    @Test
     fun `never returns empty`() {
         assertEquals("openscan", safeFileName("///"))
         assertEquals("openscan", safeFileName("   "))
@@ -93,5 +133,10 @@ class SafeFileNameTest {
         assertEquals("openscan", safeFileName("---"))
         assertEquals("openscan", safeFileName(" -.- "))
         assertEquals("openscan", safeFileName(".pdf"))
+        assertEquals("openscan", safeFileName(".jpg"))
+        assertEquals("openscan", safeFileName(".jpeg"))
+        assertEquals("openscan", safeFileName(".png"))
+        assertEquals("openscan", safeFileName(".zip"))
+        assertEquals("openscan", safeFileName(" .jpg.pdf "))
     }
 }
