@@ -11,6 +11,7 @@ private val WINDOWS_RESERVED_NAMES = setOf(
 
 private val REDUNDANT_EXTENSIONS = listOf(
     ".pdf", ".jpg", ".jpeg", ".png", ".zip",
+    ".webp", ".heic", ".heif", ".bmp", ".tiff", ".tif",
 )
 
 private val COMBINING_MARK_TYPES = setOf(
@@ -25,11 +26,12 @@ private val COMBINING_MARK_TYPES = setOf(
  *
  * Normalizes Unicode to NFC (so decomposed diacritics compose into valid letters),
  * drops orphan combining marks, strips redundant image/export extensions (.pdf, .jpg,
- * .jpeg, .png, .zip), replaces filesystem-hostile characters with spaces, collapses
- * whitespace and dots (including space-dot combinations invalid on Windows), trims
- * leading/trailing dots and hyphens, caps length at 80 characters, and escapes
- * Windows/FAT/MTP reserved device names (CON, PRN, AUX, NUL, COM0-9, LPT0-9).
- * Never returns an empty name.
+ * .jpeg, .png, .zip, .webp, .heic, .heif, .bmp, .tiff, .tif), replaces filesystem-hostile
+ * characters with spaces, collapses whitespace and dots (including space-dot combinations
+ * invalid on Windows), trims leading/trailing dots and hyphens, caps length at 80 characters
+ * without splitting surrogate pairs, and escapes Windows/FAT/MTP reserved device names
+ * (CON, PRN, AUX, NUL, COM0-9, LPT0-9). Falls back to "openscan" if the result contains
+ * no alphanumeric characters. Never returns an empty name.
  */
 fun safeFileName(title: String): String {
     var stripped = Normalizer.normalize(title.trim(), Normalizer.Form.NFC)
@@ -55,6 +57,7 @@ fun safeFileName(title: String): String {
         .replace(Regex("\\.{2,}"), ".")
         .trim(' ', '.', '-')
         .take(80)
+        .let { if (it.isNotEmpty() && it.last().isHighSurrogate()) it.dropLast(1) else it }
         .trim(' ', '.', '-')
 
     val baseName = cleaned.substringBefore('.')
@@ -67,6 +70,6 @@ fun safeFileName(title: String): String {
         }
     }
 
-    return cleaned.ifEmpty { "openscan" }
+    return if (cleaned.none { it.isLetterOrDigit() }) "openscan" else cleaned
 }
 

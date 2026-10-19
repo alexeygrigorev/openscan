@@ -92,14 +92,45 @@ class SafeFileNameTest {
         assertEquals("Photo", safeFileName("Photo.PNG"))
         assertEquals("Archive", safeFileName("Archive.zip"))
         assertEquals("Archive", safeFileName("Archive.ZIP"))
+        assertEquals("Snapshot", safeFileName("Snapshot.webp"))
+        assertEquals("Snapshot", safeFileName("Snapshot.WEBP"))
+        assertEquals("Portrait", safeFileName("Portrait.heic"))
+        assertEquals("Portrait", safeFileName("Portrait.HEIC"))
+        assertEquals("Portrait", safeFileName("Portrait.heif"))
+        assertEquals("Portrait", safeFileName("Portrait.HEIF"))
+        assertEquals("Blueprint", safeFileName("Blueprint.bmp"))
+        assertEquals("Blueprint", safeFileName("Blueprint.BMP"))
+        assertEquals("Scan", safeFileName("Scan.tiff"))
+        assertEquals("Scan", safeFileName("Scan.TIFF"))
+        assertEquals("Scan", safeFileName("Scan.tif"))
+        assertEquals("Scan", safeFileName("Scan.TIF"))
         assertEquals("scan", safeFileName("scan.jpg.pdf"))
         assertEquals("scan", safeFileName("scan.pdf.jpg"))
+        assertEquals("scan", safeFileName("scan.webp.pdf"))
+        assertEquals("scan", safeFileName("scan.heic.jpg"))
         assertEquals("doc", safeFileName("doc.zip.zip"))
+        assertEquals("doc", safeFileName("doc.tiff.zip"))
         assertEquals("jpg", safeFileName("jpg"))
         assertEquals("png", safeFileName("png"))
         assertEquals("zip", safeFileName("zip"))
+        assertEquals("webp", safeFileName("webp"))
+        assertEquals("heic", safeFileName("heic"))
+        assertEquals("tiff", safeFileName("tiff"))
+        assertEquals("bmp", safeFileName("bmp"))
         assertEquals("CON_", safeFileName("CON.jpg"))
         assertEquals("CON_", safeFileName("CON.zip"))
+        assertEquals("CON_", safeFileName("CON.webp"))
+        assertEquals("CON_", safeFileName("CON.heic"))
+    }
+
+    @Test
+    fun `caps length without splitting surrogate pairs`() {
+        val base = "a".repeat(79)
+        // \uD83D\uDCC4 is 📄 (PAGE FACING UP): high surrogate \uD83D, low surrogate \uDCC4
+        val titleWithEmoji = base + "\uD83D\uDCC4"
+        val safe = safeFileName(titleWithEmoji)
+        assertEquals(79, safe.length)
+        assertEquals(base, safe)
     }
 
     @Test
@@ -132,11 +163,22 @@ class SafeFileNameTest {
         assertEquals("openscan", safeFileName("-"))
         assertEquals("openscan", safeFileName("---"))
         assertEquals("openscan", safeFileName(" -.- "))
+        assertEquals("openscan", safeFileName("___"))
+        assertEquals("openscan", safeFileName("-_-"))
+        assertEquals("openscan", safeFileName(" ._ "))
+        assertEquals("openscan", safeFileName("___.___"))
+        assertEquals("openscan", safeFileName("___.pdf"))
         assertEquals("openscan", safeFileName(".pdf"))
         assertEquals("openscan", safeFileName(".jpg"))
         assertEquals("openscan", safeFileName(".jpeg"))
         assertEquals("openscan", safeFileName(".png"))
         assertEquals("openscan", safeFileName(".zip"))
+        assertEquals("openscan", safeFileName(".webp"))
+        assertEquals("openscan", safeFileName(".heic"))
+        assertEquals("openscan", safeFileName(".heif"))
+        assertEquals("openscan", safeFileName(".bmp"))
+        assertEquals("openscan", safeFileName(".tiff"))
+        assertEquals("openscan", safeFileName(".tif"))
         assertEquals("openscan", safeFileName(" .jpg.pdf "))
     }
 }
