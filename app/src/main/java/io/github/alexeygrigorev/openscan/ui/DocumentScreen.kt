@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,8 +40,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -63,6 +66,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -79,9 +83,13 @@ import io.github.alexeygrigorev.openscan.scan.PageOcr
 import io.github.alexeygrigorev.openscan.scan.PdfExporter
 import io.github.alexeygrigorev.openscan.scan.ScanFilter
 import io.github.alexeygrigorev.openscan.scan.ScanFilters
+import io.github.alexeygrigorev.openscan.util.formatBatchImportSummary
 import io.github.alexeygrigorev.openscan.util.formatCount
+import io.github.alexeygrigorev.openscan.util.formatDeleteDocumentMessage
 import io.github.alexeygrigorev.openscan.util.formatFileSize
+import io.github.alexeygrigorev.openscan.util.formatPageActionDescription
 import io.github.alexeygrigorev.openscan.util.formatPageCount
+import io.github.alexeygrigorev.openscan.util.formatPagePosition
 import io.github.alexeygrigorev.openscan.util.safeFileName
 import java.io.File
 import java.io.FileOutputStream
@@ -537,36 +545,67 @@ fun DocumentScreen(
             )
         },
     ) { padding ->
-        if (pages.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("No pages", style = MaterialTheme.typography.bodyLarge)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            if (exporting) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-            ) {
-                items(pages, key = { it.id }) { page ->
-                    val index = pages.indexOf(page)
-                    PageRow(
-                        page = page,
-                        filter = ScanFilter.effective(page.filter, document?.filter, appFilterDefault),
-                        reordering = reordering,
-                        canMoveUp = index > 0,
-                        canMoveDown = index < pages.lastIndex,
-                        onClick = { onEditPage(page.id) },
-                        onMoveUp = { viewModel.movePage(page, -1) },
-                        onMoveDown = { viewModel.movePage(page, +1) },
-                        onOcr = { viewModel.recognizeText(page) },
-                        onRotate = { viewModel.rotatePage(page) },
-                        onDelete = { deletingPage = page },
-                    )
+            if (pages.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.AddPhotoAlternate,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("No pages yet", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Add pages with your camera or import photos from your device.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        OutlinedButton(
+                            onClick = onAddPages,
+                            modifier = Modifier.padding(top = 16.dp),
+                        ) {
+                            Icon(Icons.Filled.AddPhotoAlternate, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Add pages")
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(pages, key = { it.id }) { page ->
+                        val index = pages.indexOf(page)
+                        PageRow(
+                            page = page,
+                            totalPages = pages.size,
+                            filter = ScanFilter.effective(page.filter, document?.filter, appFilterDefault),
+                            reordering = reordering,
+                            canMoveUp = index > 0,
+                            canMoveDown = index < pages.lastIndex,
+                            onClick = { onEditPage(page.id) },
+                            onMoveUp = { viewModel.movePage(page, -1) },
+                            onMoveDown = { viewModel.movePage(page, +1) },
+                            onOcr = { viewModel.recognizeText(page) },
+                            onRotate = { viewModel.rotatePage(page) },
+                            onDelete = { deletingPage = page },
+                        )
+                    }
                 }
             }
         }
@@ -577,13 +616,7 @@ fun DocumentScreen(
     LaunchedEffect(Unit) {
         BatchImport.summary.value?.let { (added, failed) ->
             BatchImport.summary.value = null
-            snackbarHostState.showSnackbar(
-                when {
-                    added == 0 -> "No pages could be imported"
-                    failed == 0 -> "Added ${formatPageCount(added)}"
-                    else -> "Added ${formatPageCount(added)}, $failed failed to import"
-                }
-            )
+            snackbarHostState.showSnackbar(formatBatchImportSummary(added, failed))
         }
     }
 
@@ -662,12 +695,7 @@ fun DocumentScreen(
         AlertDialog(
             onDismissRequest = { deletingDocument = false },
             title = { Text("Delete document?") },
-            text = {
-                Text(
-                    "\u201C${currentDocument.title}\u201D and its ${formatPageCount(pages.size)} " +
-                        "will be removed from this device."
-                )
-            },
+            text = { Text(formatDeleteDocumentMessage(currentDocument.title, pages.size)) },
             confirmButton = {
                 TextButton(onClick = {
                     deletingDocument = false
@@ -729,6 +757,7 @@ fun DocumentScreen(
 @Composable
 private fun PageRow(
     page: PageEntity,
+    totalPages: Int,
     filter: ScanFilter,
     reordering: Boolean,
     canMoveUp: Boolean,
@@ -741,12 +770,14 @@ private fun PageRow(
     onDelete: () -> Unit,
 ) {
     ListItem(
-        headlineContent = { Text("Page ${page.position + 1}") },
+        headlineContent = { Text(formatPagePosition(page.position, totalPages)) },
         leadingContent = {
             PageThumbnail(
                 filePath = page.filePath,
                 filter = filter,
                 showCheck = page.needsCheck == true,
+                pagePosition = page.position,
+                totalPages = totalPages,
                 modifier = Modifier
                     .width(72.dp)
                     .height(56.dp),
@@ -759,22 +790,37 @@ private fun PageRow(
             if (reordering) {
                 Row {
                     IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move page up")
+                        Icon(
+                            Icons.Filled.KeyboardArrowUp,
+                            contentDescription = formatPageActionDescription("Move up", page.position, totalPages),
+                        )
                     }
                     IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move page down")
+                        Icon(
+                            Icons.Filled.KeyboardArrowDown,
+                            contentDescription = formatPageActionDescription("Move down", page.position, totalPages),
+                        )
                     }
                 }
             } else {
                 Row {
                     IconButton(onClick = onOcr) {
-                        Icon(Icons.Filled.TextFields, contentDescription = "Recognize text")
+                        Icon(
+                            Icons.Filled.TextFields,
+                            contentDescription = formatPageActionDescription("Recognize text on", page.position, totalPages),
+                        )
                     }
                     IconButton(onClick = onRotate) {
-                        Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate")
+                        Icon(
+                            Icons.AutoMirrored.Filled.RotateRight,
+                            contentDescription = formatPageActionDescription("Rotate", page.position, totalPages),
+                        )
                     }
                     IconButton(onClick = onDelete) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Delete page")
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = formatPageActionDescription("Delete", page.position, totalPages),
+                        )
                     }
                 }
             }
@@ -787,6 +833,8 @@ private fun PageThumbnail(
     filePath: String,
     filter: ScanFilter,
     showCheck: Boolean,
+    pagePosition: Int,
+    totalPages: Int,
     modifier: Modifier = Modifier,
 ) {
     val bitmap by produceState<Bitmap?>(initialValue = null, key1 = filePath, key2 = filter) {
@@ -804,7 +852,7 @@ private fun PageThumbnail(
         Box(modifier = modifier) {
             Image(
                 bitmap = current.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = formatPageActionDescription("Thumbnail for", pagePosition, totalPages),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )

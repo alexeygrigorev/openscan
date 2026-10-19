@@ -64,3 +64,69 @@ fun formatFileSize(bytes: Long): String {
 
 /** Formats the size of [file] into a human-readable string. */
 fun formatFileSize(file: File): String = formatFileSize(file.length())
+
+/**
+ * Formats a 0-indexed page position and total count for display,
+ * e.g. "Page 1 of 5", "Page 3 of 5", or "Page 1" when [totalPages] <= 1.
+ */
+fun formatPagePosition(position: Int, totalPages: Int = 0): String {
+    val pageNumber = maxOf(0, position) + 1
+    return if (totalPages > 1) {
+        "Page $pageNumber of $totalPages"
+    } else {
+        "Page $pageNumber"
+    }
+}
+
+/**
+ * Formats an accessible action description for screen readers (TalkBack),
+ * e.g. "Delete page 2 of 5", "Move page 2 of 5 up", "Recognize text on page 2 of 5",
+ * or "Delete page 2" when [totalPages] <= 1.
+ */
+fun formatPageActionDescription(
+    action: String,
+    position: Int,
+    totalPages: Int = 0,
+): String {
+    val pageNumber = maxOf(0, position) + 1
+    val pageRef = if (totalPages > 1) "page $pageNumber of $totalPages" else "page $pageNumber"
+    val trimmedAction = action.trim()
+    return when {
+        trimmedAction.endsWith("up", ignoreCase = true) -> {
+            val prefix = trimmedAction.dropLast(2).trimEnd()
+            if (prefix.isEmpty()) "$pageRef up" else "$prefix $pageRef up"
+        }
+        trimmedAction.endsWith("down", ignoreCase = true) -> {
+            val prefix = trimmedAction.dropLast(4).trimEnd()
+            if (prefix.isEmpty()) "$pageRef down" else "$prefix $pageRef down"
+        }
+        trimmedAction.endsWith("on", ignoreCase = true) ||
+            trimmedAction.endsWith("for", ignoreCase = true) -> {
+            "$trimmedAction $pageRef"
+        }
+        else -> "$trimmedAction $pageRef"
+    }
+}
+
+/**
+ * Formats the confirmation message when deleting a document, cleanly handling
+ * documents with 0 pages, 1 page, or multiple pages.
+ */
+fun formatDeleteDocumentMessage(title: String, pageCount: Int): String {
+    val cleanTitle = title.trim()
+    return if (pageCount > 0) {
+        "\u201C$cleanTitle\u201D and its ${formatPageCount(pageCount)} will be removed from this device."
+    } else {
+        "\u201C$cleanTitle\u201D will be removed from this device."
+    }
+}
+
+/**
+ * Formats the confirmation message for a finished batch import.
+ */
+fun formatBatchImportSummary(added: Int, failed: Int): String = when {
+    added <= 0 && failed <= 0 -> "No pages were imported"
+    added <= 0 -> "${formatCount(failed, "page")} could not be imported"
+    failed <= 0 -> "Added ${formatPageCount(added)}"
+    else -> "Added ${formatPageCount(added)}, ${formatCount(failed, "page")} failed to import"
+}

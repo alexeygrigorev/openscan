@@ -5,15 +5,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Scanner
 import androidx.compose.material.icons.filled.Settings
@@ -41,12 +45,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.alexeygrigorev.openscan.data.DocumentSummary
 import io.github.alexeygrigorev.openscan.data.DocumentsRepository
+import io.github.alexeygrigorev.openscan.util.formatDeleteDocumentMessage
 import io.github.alexeygrigorev.openscan.util.formatPageCount
 import io.github.alexeygrigorev.openscan.update.ReleaseChecker
 import io.github.alexeygrigorev.openscan.update.UpdateMonitor
@@ -138,12 +144,24 @@ fun DocumentsScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = 32.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Description,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
                             Text("No documents yet", style = MaterialTheme.typography.titleMedium)
                             Text(
                                 "Tap Scan to create your first one.\nNo account, no watermark, nothing leaves this phone.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 4.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 8.dp),
                             )
                         }
                     }
@@ -178,7 +196,7 @@ fun DocumentsScreen(
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("Delete document?") },
-            text = { Text("\u201C${summary.document.title}\u201D and its ${formatPageCount(summary.pageCount)} will be removed from this device.") },
+            text = { Text(formatDeleteDocumentMessage(summary.document.title, summary.pageCount)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteDocument(summary.document.id)
@@ -211,7 +229,10 @@ private fun DocumentRow(
         trailingContent = {
             Box {
                 IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "Document actions")
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = "Actions for ${summary.document.title}",
+                    )
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(text = { Text("Rename") }, onClick = { menuOpen = false; onRename() })

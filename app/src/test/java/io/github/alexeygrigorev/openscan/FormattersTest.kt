@@ -1,8 +1,12 @@
 package io.github.alexeygrigorev.openscan
 
+import io.github.alexeygrigorev.openscan.util.formatBatchImportSummary
 import io.github.alexeygrigorev.openscan.util.formatCount
+import io.github.alexeygrigorev.openscan.util.formatDeleteDocumentMessage
 import io.github.alexeygrigorev.openscan.util.formatFileSize
+import io.github.alexeygrigorev.openscan.util.formatPageActionDescription
 import io.github.alexeygrigorev.openscan.util.formatPageCount
+import io.github.alexeygrigorev.openscan.util.formatPagePosition
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -98,5 +102,76 @@ class FormattersTest {
 
         val nonexistent = File(tmp.root, "ghost.pdf")
         assertEquals("0 B", formatFileSize(nonexistent))
+    }
+
+    @Test
+    fun `formats page position for single-page and multi-page documents`() {
+        assertEquals("Page 1 of 5", formatPagePosition(0, 5))
+        assertEquals("Page 2 of 5", formatPagePosition(1, 5))
+        assertEquals("Page 5 of 5", formatPagePosition(4, 5))
+
+        // Single-page or unspecified total pages
+        assertEquals("Page 1", formatPagePosition(0, 1))
+        assertEquals("Page 1", formatPagePosition(0, 0))
+        assertEquals("Page 3", formatPagePosition(2, 0))
+
+        // Negative position safely clamped to 0
+        assertEquals("Page 1 of 3", formatPagePosition(-1, 3))
+    }
+
+    @Test
+    fun `formats page action descriptions for screen readers`() {
+        // Multi-page document actions
+        assertEquals("Delete page 2 of 5", formatPageActionDescription("Delete", 1, 5))
+        assertEquals("Rotate page 1 of 3", formatPageActionDescription("Rotate", 0, 3))
+        assertEquals("Recognize text on page 3 of 4", formatPageActionDescription("Recognize text on", 2, 4))
+        assertEquals("Thumbnail for page 1 of 5", formatPageActionDescription("Thumbnail for", 0, 5))
+        assertEquals("Move page 2 of 5 up", formatPageActionDescription("Move up", 1, 5))
+        assertEquals("Move page 2 of 5 down", formatPageActionDescription("Move down", 1, 5))
+
+        // Single-page document actions (totalPages <= 1)
+        assertEquals("Delete page 2", formatPageActionDescription("Delete", 1, 0))
+        assertEquals("Rotate page 1", formatPageActionDescription("Rotate", 0, 1))
+        assertEquals("Move page 1 up", formatPageActionDescription("Move up", 0, 1))
+        assertEquals("Move page 1 down", formatPageActionDescription("Move down", 0, 1))
+        assertEquals("Recognize text on page 1", formatPageActionDescription("Recognize text on", 0, 1))
+    }
+
+    @Test
+    fun `formats delete document confirmation message`() {
+        assertEquals(
+            "\u201CContract\u201D and its 3 pages will be removed from this device.",
+            formatDeleteDocumentMessage("Contract", 3),
+        )
+        assertEquals(
+            "\u201CInvoice\u201D and its 1 page will be removed from this device.",
+            formatDeleteDocumentMessage("Invoice", 1),
+        )
+        // 0 pages or negative count omits the awkward 'and its 0 pages' phrase
+        assertEquals(
+            "\u201CUntitled Document\u201D will be removed from this device.",
+            formatDeleteDocumentMessage("Untitled Document", 0),
+        )
+        assertEquals(
+            "\u201CUntitled Document\u201D will be removed from this device.",
+            formatDeleteDocumentMessage("  Untitled Document  ", -1),
+        )
+    }
+
+    @Test
+    fun `formats batch import summary message`() {
+        // No pages imported
+        assertEquals("No pages were imported", formatBatchImportSummary(0, 0))
+        assertEquals("1 page could not be imported", formatBatchImportSummary(0, 1))
+        assertEquals("3 pages could not be imported", formatBatchImportSummary(0, 3))
+
+        // All succeeded
+        assertEquals("Added 1 page", formatBatchImportSummary(1, 0))
+        assertEquals("Added 3 pages", formatBatchImportSummary(3, 0))
+
+        // Mixed results
+        assertEquals("Added 1 page, 1 page failed to import", formatBatchImportSummary(1, 1))
+        assertEquals("Added 3 pages, 1 page failed to import", formatBatchImportSummary(3, 1))
+        assertEquals("Added 2 pages, 2 pages failed to import", formatBatchImportSummary(2, 2))
     }
 }
