@@ -30,9 +30,19 @@ class SafeFileNameTest {
     }
 
     @Test
+    fun `strips leading and trailing dots to avoid hidden or malformed files`() {
+        assertEquals("hidden", safeFileName(".hidden"))
+        assertEquals("report", safeFileName("report."))
+        assertEquals("report", safeFileName("...report..."))
+        assertEquals("document v1.0 draft", safeFileName("..document v1.0 draft.."))
+    }
+
+    @Test
     fun `never returns empty`() {
         assertEquals("openscan", safeFileName("///"))
         assertEquals("openscan", safeFileName("   "))
         assertEquals("openscan", safeFileName(""))
+        assertEquals("openscan", safeFileName("..."))
+        assertEquals("openscan", safeFileName(" . "))
     }
 }
