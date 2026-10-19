@@ -38,11 +38,60 @@ class SafeFileNameTest {
     }
 
     @Test
+    fun `strips leading and trailing hyphens to avoid cli option collisions`() {
+        assertEquals("rf", safeFileName("-rf"))
+        assertEquals("help", safeFileName("--help"))
+        assertEquals("draft", safeFileName("-draft-"))
+        assertEquals("invoice-2026", safeFileName("invoice-2026"))
+    }
+
+    @Test
+    fun `collapses multiple consecutive dots`() {
+        assertEquals("draft.v2", safeFileName("draft..v2"))
+        assertEquals("report.2026", safeFileName("report....2026"))
+    }
+
+    @Test
+    fun `escapes Windows and FAT reserved device names`() {
+        assertEquals("CON_", safeFileName("CON"))
+        assertEquals("con_", safeFileName("con"))
+        assertEquals("prn_", safeFileName("prn"))
+        assertEquals("PRN_", safeFileName("PRN"))
+        assertEquals("aux_", safeFileName("aux"))
+        assertEquals("AUX_", safeFileName("AUX"))
+        assertEquals("nul_", safeFileName("nul"))
+        assertEquals("NUL_", safeFileName("NUL"))
+        assertEquals("com1_", safeFileName("com1"))
+        assertEquals("COM9_", safeFileName("COM9"))
+        assertEquals("lpt1_", safeFileName("lpt1"))
+        assertEquals("LPT9_", safeFileName("LPT9"))
+        assertEquals("con_.draft", safeFileName("con.draft"))
+        assertEquals("aux_.txt", safeFileName("aux.txt"))
+        assertEquals("Constitution", safeFileName("Constitution"))
+        assertEquals("auxiliary", safeFileName("auxiliary"))
+        assertEquals("commercial", safeFileName("commercial"))
+    }
+
+    @Test
+    fun `strips redundant trailing pdf extensions to prevent double extension`() {
+        assertEquals("Contract", safeFileName("Contract.pdf"))
+        assertEquals("Receipt 2026", safeFileName("Receipt 2026.PDF"))
+        assertEquals("document", safeFileName("document.pdf.pdf"))
+        assertEquals("notes.pdf.txt", safeFileName("notes.pdf.txt"))
+        assertEquals("pdf", safeFileName("pdf"))
+        assertEquals("CON_", safeFileName("CON.pdf"))
+    }
+
+    @Test
     fun `never returns empty`() {
         assertEquals("openscan", safeFileName("///"))
         assertEquals("openscan", safeFileName("   "))
         assertEquals("openscan", safeFileName(""))
         assertEquals("openscan", safeFileName("..."))
         assertEquals("openscan", safeFileName(" . "))
+        assertEquals("openscan", safeFileName("-"))
+        assertEquals("openscan", safeFileName("---"))
+        assertEquals("openscan", safeFileName(" -.- "))
+        assertEquals("openscan", safeFileName(".pdf"))
     }
 }
