@@ -17,30 +17,82 @@
 #                               userCorners (user-corrected) or refinedCorners.
 #   results/<run>/              results.json + overlays/ (written here)
 #
-# Usage: scripts/feedback-eval/run.sh [--dir DIR] [--run NAME] [--device SERIAL]
+# Usage: scripts/feedback-eval/run.sh [--gold] [--dir DIR] [--manifest PATH] [--run NAME] [--device SERIAL] [--require-pass]
 set -euo pipefail
 
+REPO=$(git rev-parse --show-toplevel)
+cd "$REPO"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/feedback-eval/run.sh [OPTIONS]
+
+Options:
+  --gold              Run against the gold regression set (~/prod/openscan-eval/gold)
+  --dir DIR           Evaluation corpus directory (default: ~/prod/openscan-eval/feedback-2026-10-17)
+  --manifest PATH     Path to manifest JSON (default: $DIR/manifest.json)
+  --run NAME          Name for the results run (default: run-<timestamp>)
+  --device SERIAL     Target adb device or emulator (default: emulator-5556)
+  --require-pass      Exit with code 1 if any case fails or sits outside 1% tolerance
+  -h, --help          Show this help message
+EOF
+}
+
 DIR="${PRIVATE_DIR:-$HOME/prod/openscan-eval/feedback-2026-10-17}"
+MANIFEST=""
 RUN=""
 DEVICE="${DEVICE:-emulator-5556}"
 REQUIRE_PASS=0
 while [ $# -gt 0 ]; do
   case "$1" in
+    --gold)
+      DIR="$HOME/prod/openscan-eval/gold"
+      MANIFEST="$REPO/scripts/feedback-eval/gold-manifest.json"
+      shift 1
+      ;;
     --dir) DIR="$2"; shift 2 ;;
+    --manifest) MANIFEST="$2"; shift 2 ;;
     --run) RUN="$2"; shift 2 ;;
     --device) DEVICE="$2"; shift 2 ;;
     --require-pass) REQUIRE_PASS=1; shift 1 ;;
-    *) echo "unknown arg: $1" >&2; exit 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown arg: $1 (see --help)" >&2; exit 2 ;;
   esac
 done
 
-REPO=$(git rev-parse --show-toplevel)
-cd "$REPO"
 [ -z "$RUN" ] && RUN="run-$(date +%Y%m%d-%H%M%S)"
-ADB="${ANDROID_HOME:-$HOME/Android/Sdk}/platform-tools/adb"
 OUT="$DIR/results/$RUN"
 
-[ -f "$DIR/manifest.json" ] || { echo "no manifest.json in $DIR (see scripts/feedback-eval/README.md)" >&2; exit 1; }
+if [ -z "$MANIFEST" ]; then
+  if [ -f "$DIR/manifest.json" ]; then
+    MANIFEST="$DIR/manifest.json"
+  elif [ -f "$REPO/scripts/feedback-eval/gold-manifest.json" ] && [[ "$DIR" == *"gold"* ]]; then
+    MANIFEST="$REPO/scripts/feedback-eval/gold-manifest.json"
+  else
+    echo "no manifest.json in $DIR (see scripts/feedback-eval/README.md)" >&2
+    exit 1
+  fi
+fi
+
+if [ -z "${ADB:-}" ]; then
+  if [ -n "${ANDROID_HOME:-}" ] && [ -x "$ANDROID_HOME/platform-tools/adb" ]; then
+    ADB="$ANDROID_HOME/platform-tools/adb"
+  elif command -v adb >/dev/null 2>&1; then
+    ADB="$(command -v adb)"
+  elif [ -x "$HOME/Android/Sdk/platform-tools/adb" ]; then
+    ADB="$HOME/Android/Sdk/platform-tools/adb"
+  elif [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -x "$ANDROID_SDK_ROOT/platform-tools/adb" ]; then
+    ADB="$ANDROID_SDK_ROOT/platform-tools/adb"
+  else
+    echo "adb not found: set ANDROID_HOME or add adb to PATH" >&2
+    exit 1
+  fi
+fi
+
+if [ -z "${ANDROID_HOME:-}" ] && [ -d "$HOME/Android/Sdk" ]; then
+  export ANDROID_HOME="$HOME/Android/Sdk"
+fi
+
 echo "== device: $DEVICE"
 "$ADB" -s "$DEVICE" get-state >/dev/null || { echo "emulator $DEVICE not running" >&2; exit 1; }
 
@@ -49,6 +101,8 @@ echo "== building"
 APP="$REPO/app/build/outputs/apk/foss/debug/app-foss-debug.apk"
 TEST_APP="$REPO/app/build/outputs/apk/androidTest/foss/debug/app-foss-debug-androidTest.apk"
 [ -f "$TEST_APP" ] || TEST_APP="$REPO/app/build/outputs/apk/foss/debug/app-foss-debug-androidTest.apk"
+[ -f "$APP" ] || { echo "error: app APK missing at $APP" >&2; exit 1; }
+[ -f "$TEST_APP" ] || { echo "error: test APK missing at $TEST_APP" >&2; exit 1; }
 unzip -tq "$APP" >/dev/null && unzip -tq "$TEST_APP" >/dev/null
 
 echo "== installing"
@@ -59,8 +113,8 @@ PKG=io.github.alexeygrigorev.openscan
 echo "== pushing photos"
 "$ADB" -s "$DEVICE" shell rm -rf /data/local/tmp/openscan-eval
 "$ADB" -s "$DEVICE" shell mkdir -p /data/local/tmp/openscan-eval/images
-( cd "$DIR/photos" && find . -name '*.jpg' -exec "$ADB" -s "$DEVICE" push {} /data/local/tmp/openscan-eval/images/ \; 2>/dev/null >/dev/null )
-"$ADB" -s "$DEVICE" push "$DIR/manifest.json" /data/local/tmp/openscan-eval/index.json | tail -1
+"$ADB" -s "$DEVICE" push "$DIR/photos/." /data/local/tmp/openscan-eval/images/ >/dev/null
+"$ADB" -s "$DEVICE" push "$MANIFEST" /data/local/tmp/openscan-eval/index.json | tail -1
 
 echo "== benchmark"
 "$ADB" -s "$DEVICE" shell am instrument -w \

@@ -91,6 +91,19 @@ parse_args() { # "$@" — sets VARIANT, APK, SELF_TEST
 
 resolve_apksigner() {
   local sdk="${ANDROID_SDK:-${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}}"
+  if [[ -z "$sdk" ]]; then
+    if [[ -d "$HOME/Android/Sdk" ]]; then
+      sdk="$HOME/Android/Sdk"
+    elif [[ -d "$HOME/Library/Android/sdk" ]]; then
+      sdk="$HOME/Library/Android/sdk"
+    elif [[ -d "/usr/lib/android-sdk" ]]; then
+      sdk="/usr/lib/android-sdk"
+    fi
+  fi
+  if [[ -z "$sdk" ]] && command -v apksigner >/dev/null 2>&1; then
+    command -v apksigner
+    return 0
+  fi
   [[ -n "$sdk" ]] || fail "Android SDK location unknown — set ANDROID_HOME (or ANDROID_SDK/ANDROID_SDK_ROOT)"
   [[ -d "$sdk/build-tools" ]] || fail "no build-tools directory under $sdk"
 
