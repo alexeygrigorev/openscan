@@ -45,14 +45,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -378,7 +378,7 @@ private fun BatchCapturePhase(
                     Icon(Icons.Filled.Close, contentDescription = "Stop capturing", tint = Color.White)
                 }
                 Text(
-                    "$pageCount page(s)",
+                    if (pageCount == 1) "1 page" else "$pageCount pages",
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
@@ -510,7 +510,7 @@ private fun ReviewPhase(
                 title = { Text("Review pages (${pages.size})") },
                 navigationIcon = {
                     IconButton(onClick = { if (!busy) viewModel.resumeCapture() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back to camera")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to camera")
                     }
                 },
                 actions = {
@@ -705,7 +705,7 @@ private fun PageEditor(
                         Icon(Icons.Filled.Refresh, contentDescription = "Re-detect edges")
                     }
                     IconButton(onClick = { viewModel.rotatePage(page.id) }) {
-                        Icon(Icons.Filled.RotateRight, contentDescription = "Rotate 90°")
+                        Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate 90°")
                     }
                     IconButton(onClick = {
                         viewModel.deletePage(page.id)

@@ -703,6 +703,7 @@ fun DocumentScreen(
     }
 
     ocrText?.let { text ->
+        @Suppress("DEPRECATION")
         val clipboard = LocalClipboardManager.current
         AlertDialog(
             onDismissRequest = { viewModel.dismissOcr() },
