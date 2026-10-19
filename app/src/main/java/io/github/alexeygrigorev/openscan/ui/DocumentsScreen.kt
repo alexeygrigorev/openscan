@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.MoreVert
@@ -37,12 +39,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.alexeygrigorev.openscan.data.DocumentSummary
 import io.github.alexeygrigorev.openscan.data.DocumentsRepository
+import io.github.alexeygrigorev.openscan.util.formatPageCount
 import io.github.alexeygrigorev.openscan.update.ReleaseChecker
 import io.github.alexeygrigorev.openscan.update.UpdateMonitor
 import io.github.alexeygrigorev.openscan.update.UpdateStatus
@@ -173,7 +178,7 @@ fun DocumentsScreen(
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("Delete document?") },
-            text = { Text("\u201C${summary.document.title}\u201D and its ${summary.pageCount} pages will be removed from this device.") },
+            text = { Text("\u201C${summary.document.title}\u201D and its ${formatPageCount(summary.pageCount)} will be removed from this device.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteDocument(summary.document.id)
@@ -198,7 +203,7 @@ private fun DocumentRow(
             Text(summary.document.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         supportingContent = {
-            Text("${summary.pageCount} page${if (summary.pageCount == 1) "" else "s"} · ${listDateFormat.format(Date(summary.document.updatedAt))}")
+            Text("${formatPageCount(summary.pageCount)} · ${listDateFormat.format(Date(summary.document.updatedAt))}")
         },
         modifier = Modifier
             .fillMaxWidth()
@@ -220,6 +225,7 @@ private fun DocumentRow(
 @Composable
 fun RenameDialog(initialTitle: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var title by remember { mutableStateOf(initialTitle) }
+    val isValid = title.trim().isNotEmpty()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Rename document") },
@@ -228,10 +234,27 @@ fun RenameDialog(initialTitle: String, onDismiss: () -> Unit, onConfirm: (String
                 value = title,
                 onValueChange = { title = it },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        val trimmed = title.trim()
+                        if (trimmed.isNotEmpty()) {
+                            onConfirm(trimmed)
+                        }
+                    },
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
         },
-        confirmButton = { TextButton(onClick = { onConfirm(title) }) { Text("Save") } },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(title.trim()) },
+                enabled = isValid,
+            ) { Text("Save") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

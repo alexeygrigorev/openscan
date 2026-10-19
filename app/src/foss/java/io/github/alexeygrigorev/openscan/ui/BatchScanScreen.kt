@@ -99,6 +99,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.alexeygrigorev.openscan.OpenScanApp
+import io.github.alexeygrigorev.openscan.util.formatPageCount
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
@@ -195,7 +196,7 @@ fun BatchScanRoute(
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
             title = { Text("Discard captured pages?") },
-            text = { Text("$pageCount captured page(s) will be deleted.") },
+            text = { Text("${formatPageCount(pageCount, "captured")} will be deleted.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDiscard = false
@@ -378,7 +379,7 @@ private fun BatchCapturePhase(
                     Icon(Icons.Filled.Close, contentDescription = "Stop capturing", tint = Color.White)
                 }
                 Text(
-                    if (pageCount == 1) "1 page" else "$pageCount pages",
+                    formatPageCount(pageCount),
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),

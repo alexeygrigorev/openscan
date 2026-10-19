@@ -79,6 +79,7 @@ import io.github.alexeygrigorev.openscan.scan.PageOcr
 import io.github.alexeygrigorev.openscan.scan.PdfExporter
 import io.github.alexeygrigorev.openscan.scan.ScanFilter
 import io.github.alexeygrigorev.openscan.scan.ScanFilters
+import io.github.alexeygrigorev.openscan.util.formatPageCount
 import io.github.alexeygrigorev.openscan.util.safeFileName
 import java.io.File
 import java.io.FileOutputStream
@@ -237,7 +238,7 @@ class DocumentViewModel(
                     repository.redetectDocument(documentId)
                 }
                 notice.value = buildString {
-                    append("Re-detected ${summary.attempted} page${if (summary.attempted == 1) "" else "s"}")
+                    append("Re-detected ${formatPageCount(summary.attempted)}")
                     append(": ${summary.cropsChanged} new crop${if (summary.cropsChanged == 1) "" else "s"}")
                     if (summary.flagged > 0) append(", ${summary.flagged} flagged — open pages to review")
                     if (summary.failed > 0) append(", ${summary.failed} failed")
@@ -577,9 +578,8 @@ fun DocumentScreen(
             snackbarHostState.showSnackbar(
                 when {
                     added == 0 -> "No pages could be imported"
-                    failed == 0 -> "Added $added page${if (added == 1) "" else "s"}"
-                    else -> "Added $added page${if (added == 1) "" else "s"}, " +
-                        "$failed failed to import"
+                    failed == 0 -> "Added ${formatPageCount(added)}"
+                    else -> "Added ${formatPageCount(added)}, $failed failed to import"
                 }
             )
         }
@@ -606,7 +606,7 @@ fun DocumentScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissExportReady() },
             title = { Text("PDF ready") },
-            text = { Text("${safeFileName(title)}.pdf — ${pages.size} page${if (pages.size == 1) "" else "s"}.") },
+            text = { Text("${safeFileName(title)}.pdf — ${formatPageCount(pages.size)}.") },
             confirmButton = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = {
@@ -662,8 +662,8 @@ fun DocumentScreen(
             title = { Text("Delete document?") },
             text = {
                 Text(
-                    "\u201C${currentDocument.title}\u201D and its ${pages.size} " +
-                        "page${if (pages.size == 1) "" else "s"} will be removed from this device."
+                    "\u201C${currentDocument.title}\u201D and its ${formatPageCount(pages.size)} " +
+                        "will be removed from this device."
                 )
             },
             confirmButton = {
