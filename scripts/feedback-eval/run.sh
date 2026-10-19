@@ -41,7 +41,7 @@ EOF
 DIR="${PRIVATE_DIR:-$HOME/prod/openscan-eval/feedback-2026-10-17}"
 MANIFEST=""
 RUN=""
-DEVICE="${DEVICE:-emulator-5556}"
+DEVICE="${DEVICE:-}"
 REQUIRE_PASS=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -50,10 +50,18 @@ while [ $# -gt 0 ]; do
       MANIFEST="$REPO/scripts/feedback-eval/gold-manifest.json"
       shift 1
       ;;
-    --dir) DIR="$2"; shift 2 ;;
-    --manifest) MANIFEST="$2"; shift 2 ;;
-    --run) RUN="$2"; shift 2 ;;
-    --device) DEVICE="$2"; shift 2 ;;
+    --dir)
+      [ $# -ge 2 ] || { echo "error: --dir requires a path" >&2; exit 2; }
+      DIR="$2"; shift 2 ;;
+    --manifest)
+      [ $# -ge 2 ] || { echo "error: --manifest requires a path" >&2; exit 2; }
+      MANIFEST="$2"; shift 2 ;;
+    --run)
+      [ $# -ge 2 ] || { echo "error: --run requires a name" >&2; exit 2; }
+      RUN="$2"; shift 2 ;;
+    --device)
+      [ $# -ge 2 ] || { echo "error: --device requires a serial" >&2; exit 2; }
+      DEVICE="$2"; shift 2 ;;
     --require-pass) REQUIRE_PASS=1; shift 1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown arg: $1 (see --help)" >&2; exit 2 ;;
@@ -89,8 +97,27 @@ if [ -z "${ADB:-}" ]; then
   fi
 fi
 
-if [ -z "${ANDROID_HOME:-}" ] && [ -d "$HOME/Android/Sdk" ]; then
-  export ANDROID_HOME="$HOME/Android/Sdk"
+if [ -z "${ANDROID_HOME:-}" ]; then
+  if [ -d "$HOME/Android/Sdk" ]; then
+    export ANDROID_HOME="$HOME/Android/Sdk"
+  elif [ -d "$HOME/Library/Android/sdk" ]; then
+    export ANDROID_HOME="$HOME/Library/Android/sdk"
+  elif [ -d "/usr/lib/android-sdk" ]; then
+    export ANDROID_HOME="/usr/lib/android-sdk"
+  fi
+fi
+
+if [ -z "$DEVICE" ]; then
+  if "$ADB" -s emulator-5556 get-state >/dev/null 2>&1; then
+    DEVICE="emulator-5556"
+  else
+    devices=($("$ADB" devices | awk 'NR>1 && $2=="device" {print $1}'))
+    if [ ${#devices[@]} -eq 1 ]; then
+      DEVICE="${devices[0]}"
+    else
+      DEVICE="emulator-5556"
+    fi
+  fi
 fi
 
 echo "== device: $DEVICE"
