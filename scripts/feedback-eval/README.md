@@ -18,10 +18,10 @@ reports or screenshots. Reports carry aggregate numbers only.
 1. Whoever can read the upload bucket drops today's raw photos into
    `$PRIVATE_DIR/photos/<case-id>.jpg` and writes `$PRIVATE_DIR/manifest.json`
    (`doc` = batch id, e.g. `2026-10-17-1430`).
-2. `scripts/feedback-eval/run.sh [--dir DIR] [--run NAME]` pushes the photos
-   to the emulator, runs `FeedbackEvalBenchmark` (detect + refine + overlay
-   per photo), pulls `results.json` + overlays into the private results dir,
-   and prints mean corner error + % within 1% tolerance.
+2. `scripts/feedback-eval/run.sh [--gold] [--dir DIR] [--manifest PATH] [--run NAME] [--require-pass]`
+   pushes the photos to the emulator, runs `FeedbackEvalBenchmark` (detect +
+   refine + overlay per photo), pulls `results.json` + overlays into the private
+   results dir, and prints mean corner error + % within 1% tolerance.
 3. Verify every overlay by eye (PASS / FAIL notes next to the run, private).
    Where Alexey corrected corners in-app (v0.2.4+ sidecars carry
    `userCorners`), seed `truth` from the sidecar; otherwise annotate the 8
@@ -30,7 +30,7 @@ reports or screenshots. Reports carry aggregate numbers only.
    tolerance), re-run, record before/after numbers in the report.
 5. Freeze representative hard cases into the gold set:
    `~/prod/openscan-eval/gold/` (photos + manifest with truth, private).
-   Future changes re-run `run.sh --dir ~/prod/openscan-eval/gold`.
+   Future changes re-run `run.sh --gold --require-pass`.
 
 ## Metrics
 

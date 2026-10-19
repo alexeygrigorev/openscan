@@ -127,6 +127,8 @@ Before tagging, run the gold-standard corner evaluation check locally against
 the private gold corpus (`~/prod/openscan-eval/gold`):
 
 ```bash
+scripts/feedback-eval/run.sh --gold --require-pass
+# or specify the corpus directory explicitly:
 scripts/feedback-eval/run.sh --dir ~/prod/openscan-eval/gold --require-pass
 ```
 
@@ -140,8 +142,8 @@ exits with code 1 otherwise).
 ```bash
 git checkout main
 git pull
-git tag v0.2.0          # next unused vX.Y.Z; NO version files to bump
-git push origin v0.2.0
+git tag v0.2.6          # next unused vX.Y.Z; NO version files to bump
+git push origin v0.2.6
 ```
 
 The tag must point **exactly at the current main head** — the workflow's
@@ -151,7 +153,7 @@ HEAD>` and fails otherwise.
 ### 4. Run the publish workflow
 
 ```bash
-gh workflow run publish-release.yml --ref main -f release_tag=v0.2.0
+gh workflow run publish-release.yml --ref main -f release_tag=v0.2.6
 ```
 
 or via the UI: Actions → "Publish release" → Run workflow → main →
