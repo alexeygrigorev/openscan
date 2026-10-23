@@ -24,13 +24,22 @@ reports or screenshots. Reports carry aggregate numbers only.
    results dir, and prints mean corner error + % within 1% tolerance.
 3. Verify every overlay by eye (PASS / FAIL notes next to the run, private).
    Where Alexey corrected corners in-app (v0.2.4+ sidecars carry
-   `userCorners`), seed `truth` from the sidecar; otherwise annotate the 8
-   numbers by hand into `manifest.json`.
+   `userCorners`), verify those against the raw photo; otherwise measure the
+   physical paper corners independently on a raw-image coordinate grid.
+   Detector `refinedCorners` are predictions, never ground truth. Record the
+   labeling method and any clipping/occlusion in `gold-labeling.md`.
 4. Fix the detector until every case passes (0 failures, 100% within
    tolerance), re-run, record before/after numbers in the report.
 5. Freeze representative hard cases into the gold set:
    `~/prod/openscan-eval/gold/` (photos + manifest with truth, private).
    Future changes re-run `run.sh --gold --require-pass`.
+
+The October 17 full feedback manifest contains circular detector-derived
+labels. Use it for inventory only. A full-set quality run should supply a
+separate manifest containing independent gold truth and omit `truth` for
+visually reviewed, unannotated cases. Their visual “within 1%” decisions are
+review judgments, not measured ground-truth scores. See
+[`gold-labeling.md`](gold-labeling.md) for the annotation audit.
 
 ## Metrics
 

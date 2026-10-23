@@ -486,11 +486,23 @@ private object QuadDetector {
         if (!best.texture && best.fill < 0.15 && best.af >= 0.55) {
             quad = recoverPaperyInsetMargins(quad, hsv, sw, sh)
         }
+        if (!best.texture) {
+            dominantSheetQuad(hsv, gray, sw, sh)?.let { sheet ->
+                // A neutral tabletop can share the sheet's color. A large
+                // expansion still needs printing beyond the incumbent;
+                // otherwise preserve the supported small-document read.
+                if (polyArea(sheet) <= 1.4 * polyArea(quad) ||
+                    hasFullSheetOutside(quad, hsv, rawEdges[1]!!)
+                ) quad = sheet
+            }
+            if (best.fill < 0.15 && polyArea(quad) > 0.80 * frameArea) {
+                frontSheetOfStack(quad, gray, hsv, sw, sh)?.let { sheet -> quad = sheet }
+            }
+        }
         // A printed table is not the page boundary. Only rescue to the frame
-        // when a nearly continuous neutral sheet fills it AND ink continues
-        // outside the elected quad. A blank desk around a small document does
-        // not provide that second piece of evidence.
-        if (polyArea(quad) < 0.85 * frameArea && framePaperish &&
+        // when a nearly continuous neutral sheet fills it. Small elected quads
+        // also need printing outside them; a blank desk is insufficient.
+        if (polyArea(quad) < 0.98 * frameArea && framePaperish &&
             hasFullSheetOutside(quad, hsv, rawEdges[1]!!)
         ) {
             quad = frameQ.copyOf()
@@ -712,16 +724,167 @@ private object QuadDetector {
         return if (total == 0) 0.0 else hit.toDouble() / total
     }
 
+    /**
+     * Recover a dominant neutral sheet from its silhouette, before desk edges
+     * or printed rules can capture the final corners. Require a single nearly
+     * quadrilateral component covering most of the image. Concave unions need
+     * a long foreground boundary; small documents retain the ordinary election.
+     */
+    private fun dominantSheetQuad(hsv: Mat, gray: Mat, sw: Int, sh: Int): DoubleArray? {
+        val mask = Mat()
+        Core.inRange(hsv, Scalar(0.0, 0.0, 120.0), Scalar(179.0, 35.0, 255.0), mask)
+        val close = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(9.0, 9.0))
+        val open = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(5.0, 5.0))
+        Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, close)
+        Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_OPEN, open)
+        close.release(); open.release()
+        val contours = ArrayList<MatOfPoint>()
+        val hierarchy = Mat()
+        Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE)
+        hierarchy.release(); mask.release()
+        try {
+            val contour = contours.maxByOrNull { Imgproc.contourArea(it) } ?: return null
+            val area = Imgproc.contourArea(contour)
+            if (area < 0.55 * sw * sh) return null
+            val points = contour.toArray()
+            val tips = arrayOf(
+                points.minBy { it.x + it.y }, points.maxBy { it.x - it.y },
+                points.maxBy { it.x + it.y }, points.minBy { it.x - it.y },
+            )
+            val coarse = DoubleArray(8) { i -> if (i % 2 == 0) tips[i / 2].x else tips[i / 2].y }
+            if (polyArea(coarse) < 0.94 * area) {
+                return clippedForegroundSheet(coarse, gray, hsv, sw, sh)
+            }
+            val lines = Array(4) { i ->
+                val a = tips[i]; val b = tips[(i + 1) % 4]
+                val dx = b.x - a.x; val dy = b.y - a.y
+                val length = hypot(dx, dy)
+                if (length < 1.0) return null
+                val near = points.filter { p ->
+                    val t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / (length * length)
+                    val distance = abs(dx * (p.y - a.y) - dy * (p.x - a.x)) / length
+                    t in 0.12..0.88 && distance < 0.035 * max(sw, sh)
+                }
+                if (near.size < 10) return null
+                val samples = MatOfPoint2f(*near.toTypedArray())
+                val line = Mat()
+                Imgproc.fitLine(samples, line, Imgproc.DIST_HUBER, 0.0, 0.01, 0.01)
+                val values = FloatArray(4)
+                line.get(0, 0, values)
+                samples.release(); line.release()
+                values.map { it.toDouble() }.toDoubleArray()
+            }
+            val fitted = DoubleArray(8)
+            for (i in 0..3) {
+                val a = lines[(i + 3) % 4]; val b = lines[i]
+                val cross = a[0] * b[1] - a[1] * b[0]
+                if (abs(cross) < 0.1) return null
+                val t = ((b[2] - a[2]) * b[1] - (b[3] - a[3]) * b[0]) / cross
+                var x = (a[2] + t * a[0]).coerceIn(0.0, sw - 1.0)
+                var y = (a[3] + t * a[1]).coerceIn(0.0, sh - 1.0)
+                val tip = tips[i]
+                // Limit extrapolation around rounded or curled paper tips.
+                val displacement = hypot(x - tip.x, y - tip.y)
+                // Bottom fits may move inward farther than outward: the latter
+                // can annex the dark cover or the desk under a curled tip.
+                val limit = if (i >= 2 && y < tip.y) 12.0 else 8.0
+                if (displacement > limit) {
+                    x = tip.x + (x - tip.x) * limit / displacement
+                    y = tip.y + (y - tip.y) * limit / displacement
+                }
+                val frameCorner = (tip.x <= 1 || tip.x >= sw - 2) &&
+                    (tip.y <= 1 || tip.y >= sh - 2)
+                if (frameCorner) {
+                    x = tip.x; y = tip.y
+                }
+                fitted[2 * i] = x; fitted[2 * i + 1] = y
+            }
+            if (polyArea(fitted) !in 0.94 * area..1.06 * area) return null
+            return fitted
+        } finally {
+            contours.forEach { it.release() }
+        }
+    }
+
+    private fun sheetLines(gray: Mat, sw: Int, sh: Int): List<DoubleArray> {
+        val edges = Mat()
+        val lines = Mat()
+        Imgproc.Canny(gray, edges, 10.0, 40.0)
+        Imgproc.HoughLinesP(edges, lines, 1.0, Math.PI / 720.0, 50, 0.25 * min(sw, sh), 20.0)
+        val result = (0 until lines.rows()).map { lines.get(it, 0) }
+        edges.release(); lines.release()
+        return result
+    }
+
+    private fun lineX(line: DoubleArray, y: Double): Double =
+        line[0] + (y - line[1]) * (line[2] - line[0]) / (line[3] - line[1])
+
+    private fun lineY(line: DoubleArray, x: Double): Double =
+        line[1] + (x - line[0]) * (line[3] - line[1]) / (line[2] - line[0])
+
+    /** An overlapping background page makes the union concave. A long internal
+     * edge plus the exposed right silhouette identifies the foreground sheet. */
+    private fun clippedForegroundSheet(
+        outline: DoubleArray, gray: Mat, hsv: Mat, sw: Int, sh: Int,
+    ): DoubleArray? {
+        if (outline[2] < 0.75 * sw || outline[3] > 0.40 * sh || outline[5] < 0.95 * sh) return null
+        val left = sheetLines(gray, sw, sh).filter { l ->
+            abs(l[3] - l[1]) > 0.60 * sh && abs(l[2] - l[0]) < 0.15 * abs(l[3] - l[1]) &&
+                lineX(l, 0.5 * sh) in 0.15 * sw..0.65 * sw
+        }.maxByOrNull { abs(it[3] - it[1]) } ?: return null
+        val top = outline[3]; val bottom = outline[5]
+        val quad = doubleArrayOf(
+            lineX(left, top), top, outline[2], top,
+            outline[4], bottom, lineX(left, bottom), bottom,
+        )
+        return quad.takeIf { polyArea(it) > 0.35 * sw * sh && paperishScore(it, hsv) > 0.85 }
+    }
+
+    /** Several separated parallel left edges and a long lower paper seam
+     * describe stacked sheets. Use the foremost left edge and first lower seam
+     * instead of extending through the other sheets to the photograph border. */
+    private fun frontSheetOfStack(
+        q: DoubleArray, gray: Mat, hsv: Mat, sw: Int, sh: Int,
+    ): DoubleArray? {
+        if (q[1] > 0.06 * sh || q[3] > 0.08 * sh || q[2] < 0.97 * sw ||
+            min(q[5], q[7]) < 0.92 * sh
+        ) return null
+        val lines = sheetLines(gray, sw, sh)
+        val vertical = lines.filter { l ->
+            abs(l[3] - l[1]) > 0.25 * sh && abs(l[2] - l[0]) < 0.12 * abs(l[3] - l[1]) &&
+                lineX(l, 0.5 * sh) in 0.02 * sw..0.15 * sw
+        }
+        val left = vertical.maxByOrNull { lineX(it, 0.5 * sh) } ?: return null
+        if (vertical.none { lineX(left, 0.5 * sh) - lineX(it, 0.5 * sh) > 10.0 }) return null
+        val bottom = lines.filter { l ->
+            abs(l[2] - l[0]) > 0.40 * sw && abs(l[3] - l[1]) < 0.10 * abs(l[2] - l[0]) &&
+                min(l[1], l[3]) > 0.85 * sh
+        }.minByOrNull { lineY(it, 0.5 * sw) } ?: return null
+        val right = sw - 1.0
+        val bottomLeftY = lineY(bottom, lineX(left, sh - 1.0))
+        val quad = doubleArrayOf(
+            lineX(left, 0.0), 0.0, right, q[3],
+            right, lineY(bottom, right), lineX(left, bottomLeftY), bottomLeftY,
+        )
+        if (quad[0] !in 0.0..0.25 * sw || quad[6] !in 0.0..0.25 * sw) return null
+        return quad.takeIf { paperishScore(it, hsv) >= 0.85 }
+    }
+
     /** A frame-filling neutral sheet with printing beyond an interior latch. */
     private fun hasFullSheetOutside(q: DoubleArray, hsv: Mat, edges: Mat): Boolean {
         val sheet = Mat()
-        Core.inRange(hsv, Scalar(0.0, 0.0, 120.0), Scalar(179.0, 35.0, 255.0), sheet)
+        Core.inRange(hsv, Scalar(0.0, 0.0, 120.0), Scalar(179.0, 55.0, 255.0), sheet)
         val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(15.0, 15.0))
         Imgproc.morphologyEx(sheet, sheet, Imgproc.MORPH_CLOSE, kernel)
+        val sheetFraction = Core.countNonZero(sheet).toDouble() / (hsv.rows() * hsv.cols())
+        val coversFrame = sheetFraction >= 0.98
+        Core.inRange(hsv, Scalar(0.0, 0.0, 120.0), Scalar(179.0, 35.0, 255.0), sheet)
+        Imgproc.morphologyEx(sheet, sheet, Imgproc.MORPH_CLOSE, kernel)
         kernel.release()
-        val coversFrame = Core.countNonZero(sheet) >= 0.98 * hsv.rows() * hsv.cols()
+        val neutral = Core.countNonZero(sheet) >= 0.94 * hsv.rows() * hsv.cols()
         sheet.release()
-        if (!coversFrame) return false
+        if (!coversFrame || !neutral) return false
+        if (polyArea(q) > 0.70 * hsv.rows() * hsv.cols()) return sheetFraction >= 0.999
         val inside = Mat.zeros(hsv.rows(), hsv.cols(), org.opencv.core.CvType.CV_8UC1)
         val polygon = MatOfPoint(*Array(4) { i -> org.opencv.core.Point(q[2 * i], q[2 * i + 1]) })
         Imgproc.fillPoly(inside, listOf(polygon), Scalar(255.0))

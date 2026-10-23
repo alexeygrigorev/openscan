@@ -13,8 +13,8 @@
 #                                            "truth": [8 numbers]?}]}
 #                               truth = hand-verified corners in full-res source
 #                               coordinates (TL,TR,BR,BL); omit until annotated.
-#                               For v0.2.4+ uploads, seed truth from the sidecar's
-#                               userCorners (user-corrected) or refinedCorners.
+#                               Verify user-corrected userCorners against the
+#                               raw photo; refinedCorners are predictions, not GT.
 #   results/<run>/              results.json + overlays/ (written here)
 #
 # Usage: scripts/feedback-eval/run.sh [--gold] [--dir DIR] [--manifest PATH] [--run NAME] [--device SERIAL] [--require-pass]
