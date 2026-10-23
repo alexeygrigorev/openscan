@@ -330,6 +330,37 @@ private object QuadDetector {
                 )
             )
         }
+        // t1245u-hard2: a sparse large contour (fill≪1) often latched onto an
+        // interior edge — notebook spine/gutter (aa466bb3) or a text column —
+        // while a solid paper/neutral-mask hull of the same page sits in the
+        // pool at lower score (BIG_AF damp). Promote the solid hull when its
+        // top/bottom stay within 8% of the sparse winner's: that recovers the
+        // missing page without absorbing a paper-stack below a top-sheet read
+        // (b3fc10ce, where papermask reaches frame-bottom past the top sheet).
+        if (best.fill < 0.15 && best.af >= 0.55) {
+            fun ySpan(q: DoubleArray): Pair<Double, Double> {
+                var minY = q[1]; var maxY = q[1]
+                for (i in 1..3) {
+                    val y = q[2 * i + 1]
+                    if (y < minY) minY = y
+                    if (y > maxY) maxY = y
+                }
+                return minY to maxY
+            }
+            val (bMinY, bMaxY) = ySpan(best.q)
+            val yTol = 0.08 * sh
+            val solid = cands.firstOrNull { c ->
+                c !== best &&
+                    c.fill >= 0.95 && c.pap >= 0.85 &&
+                    c.af >= 0.90 && c.af >= best.af + 0.04 &&
+                    run {
+                        val (cMinY, cMaxY) = ySpan(c.q)
+                        kotlin.math.abs(cMaxY - bMaxY) <= yTol &&
+                            kotlin.math.abs(cMinY - bMinY) <= yTol
+                    }
+            }
+            if (solid != null) best = solid
+        }
         val bestScore0 = best.score // the sliver test keeps using the original winner's score
         // v20: challengers from the new sources (ilist/amax) must refine to BETTER
         // boundary evidence than the incumbent before they may take over — a
@@ -437,6 +468,23 @@ private object QuadDetector {
                 quad = pre
                 extensionVetoed = true
             }
+        }
+        // t1245u-hard2: paper-stack / asymmetric frame-contact repair.
+        // extendSides walks through papery lower sheets (stack) because the
+        // "beyond is papery" internal-rule escape treats the top-sheet edge as
+        // skippable. When exactly one bottom corner is pinned to the frame and
+        // the other sits clearly inset, snap the frame-pinned corner up onto
+        // the inset corner's y (b3fc10ce BL). Same for top / left / right.
+        if (!best.texture) {
+            quad = repairAsymmetricFrameContact(quad, hsv, sw, sh)
+        }
+        // t1245u-hard2: sparse large winners with an inset vertical side that
+        // still has papery exterior (text-column latch on a full sheet) walk
+        // that side outward through papery pixels to the true sheet edge.
+        // Does not jump dark gutters (aa466bb3 is handled by the solid-hull
+        // promotion above).
+        if (!best.texture && best.fill < 0.15 && best.af >= 0.55) {
+            quad = recoverPaperyInsetMargins(quad, hsv, sw, sh)
         }
         // (texture-rescue winners skip refinement and side extension: the mask
         // outline is already the full blob, Canny edges are unreliable on these
@@ -1219,6 +1267,165 @@ private object QuadDetector {
             if (xi in 0 until ew && yi in 0 until eh && (buf[yi * ew + xi].toInt() and 0xFF) > 0) hit++
         }
         return hit.toDouble() / k
+    }
+
+    /**
+     * t1245u-hard2: if exactly one corner of an opposite pair sits on the frame
+     * and the other is clearly inset, snap the on-frame corner onto the inset
+     * corner's coordinate along that axis. Repairs stack-bleed where one bottom
+     * corner rode lower sheets to the frame while the other stayed on the top
+     * sheet edge.
+     */
+    private fun repairAsymmetricFrameContact(
+        q: DoubleArray,
+        hsv: Mat,
+        sw: Int,
+        sh: Int,
+    ): DoubleArray {
+        val out = q.copyOf()
+        val edge = 0.02
+        val inset = 0.04
+        val brY = out[5]; val blY = out[7]
+        val brOn = brY >= (1.0 - edge) * sh
+        val blOn = blY >= (1.0 - edge) * sh
+        // Only extend the inset bottom corner DOWN to the frame-pinned one when
+        // the vertical strip under the inset corner stays papery (same sheet).
+        // Skips perspective notebooks where the high corner sits above wood
+        // (bd3b1c4e BL@1152 over desk while BR meets the frame).
+        if (blOn && !brOn && brY < (1.0 - inset) * sh) {
+            if (verticalStripPapery(hsv, out[4], brY, blY, sw, sh)) out[5] = blY
+        }
+        if (brOn && !blOn && blY < (1.0 - inset) * sh) {
+            if (verticalStripPapery(hsv, out[6], blY, brY, sw, sh)) out[7] = brY
+        }
+        return out
+    }
+
+    /** True when >=70% of samples along x from y0→y1 read as papery. */
+    private fun verticalStripPapery(
+        hsv: Mat,
+        x: Double,
+        y0: Double,
+        y1: Double,
+        sw: Int,
+        sh: Int,
+    ): Boolean {
+        val vMat = Mat(); val sMat = Mat()
+        Core.extractChannel(hsv, vMat, 2)
+        Core.extractChannel(hsv, sMat, 1)
+        val lo = minOf(y0, y1); val hi = maxOf(y0, y1)
+        if (hi - lo < 4.0) { vMat.release(); sMat.release(); return false }
+        // Sample slightly toward frame center: a corner sitting on the sheet's
+        // right/left ink edge (b3fc10ce BR@x≈frame) otherwise reads as non-paper.
+        val cx = sw / 2.0
+        val xSample = (x + 0.12 * (cx - x)).coerceIn(0.0, (sw - 1).toDouble())
+        val xi = Math.round(xSample).toInt()
+        var pap = 0; var tot = 0
+        var y = lo
+        while (y <= hi) {
+            val yi = Math.round(y).toInt().coerceIn(0, sh - 1)
+            val sBuf = ByteArray(1); val vBuf = ByteArray(1)
+            sMat.get(yi, xi, sBuf); vMat.get(yi, xi, vBuf)
+            val s = sBuf[0].toInt() and 0xFF
+            val v = vBuf[0].toInt() and 0xFF
+            if ((v > 120 && s < 80) || (v > 85 && s < 60)) pap++
+            tot++
+            y += 4.0
+        }
+        vMat.release(); sMat.release()
+        return tot > 0 && pap.toDouble() / tot >= 0.55
+    }
+
+    /**
+     * t1245u-hard2: walk inset vertical sides of a sparse large quad outward
+     * through papery pixels until the sheet edge. Stops on non-papery (wood,
+     * dark gutter) so it cannot jump a notebook spine — that case is covered
+     * by solid-hull promotion.
+     */
+    private fun recoverPaperyInsetMargins(q: DoubleArray, hsv: Mat, sw: Int, sh: Int): DoubleArray {
+        val vMat = Mat(); val sMat = Mat()
+        Core.extractChannel(hsv, vMat, 2)
+        Core.extractChannel(hsv, sMat, 1)
+        val vBlur = Mat(); val sBlur = Mat()
+        Imgproc.blur(vMat, vBlur, Size(9.0, 9.0))
+        Imgproc.blur(sMat, sBlur, Size(9.0, 9.0))
+        vMat.release(); sMat.release()
+        val nPx = sw * sh
+        val vBuf = ByteArray(nPx); val sBuf = ByteArray(nPx)
+        vBlur.get(0, 0, vBuf); sBlur.get(0, 0, sBuf)
+        vBlur.release(); sBlur.release()
+        fun paperyAt(x: Int, y: Int): Boolean {
+            val xi = x.coerceIn(0, sw - 1); val yi = y.coerceIn(0, sh - 1)
+            val s = sBuf[yi * sw + xi].toInt() and 0xFF
+            val v = vBuf[yi * sw + xi].toInt() and 0xFF
+            return (v > 120 && s < 80) || (v > 85 && s < 60)
+        }
+        val out = q.copyOf()
+        val leftX = (out[0] + out[6]) / 2.0
+        val rightX = (out[2] + out[4]) / 2.0
+        val topY = (out[1] + out[3]) / 2.0
+        val botY = (out[5] + out[7]) / 2.0
+        // Walk each corner's vertical side independently so perspective taper
+        // (b3fc10ce left edge ~x=60 at top → ~x=10 at bottom) is preserved.
+        fun walkLeft(fromX: Double, atY: Double): Double {
+            var x = fromX
+            val minX = 0.005 * sw
+            while (x > minX) {
+                if (!paperyAt(Math.round(x - 2.0).toInt(), Math.round(atY).toInt())) break
+                x -= 2.0
+            }
+            return x
+        }
+        fun walkRight(fromX: Double, atY: Double): Double {
+            var x = fromX
+            val maxX = 0.995 * sw
+            while (x < maxX) {
+                if (!paperyAt(Math.round(x + 2.0).toInt(), Math.round(atY).toInt())) break
+                x += 2.0
+            }
+            return x
+        }
+        // left inset?
+        if (leftX >= 0.08 * sw && leftX <= 0.40 * sw) {
+            val tlY = out[1]; val blY = out[7]
+            val newTl = walkLeft(out[0], tlY + 0.08 * (blY - tlY))
+            val newBl = walkLeft(out[6], blY - 0.08 * (blY - tlY))
+            if (out[0] - newTl >= 4.0) out[0] = newTl
+            if (out[6] - newBl >= 4.0) out[6] = newBl
+        }
+        // right inset?
+        if (rightX <= 0.92 * sw && rightX >= 0.60 * sw) {
+            val trY = out[3]; val brY = out[5]
+            val newTr = walkRight(out[2], trY + 0.08 * (brY - trY))
+            val newBr = walkRight(out[4], brY - 0.08 * (brY - trY))
+            if (newTr - out[2] >= 4.0) out[2] = newTr
+            if (newBr - out[4] >= 4.0) out[4] = newBr
+        }
+        // top on wood: BOTH top corners near frame but a wood strip sits above
+        // the sheet (b3fc10ce). Skip when only one corner is low (perspective
+        // skew like bd3b1c4e TR@0 / TL@50). Walk down until mid-x is papery.
+        val topY0 = (out[1] + out[3]) / 2.0
+        if (out[1] <= 0.04 * sh && out[3] <= 0.04 * sh && topY0 <= 0.04 * sh) {
+            val midXSamples = DoubleArray(5) { i ->
+                out[0] + (out[2] - out[0]) * (0.2 + i * 0.15)
+            }
+            var y = topY0
+            val maxY = 0.12 * sh
+            while (y < maxY) {
+                var pap = 0
+                for (x in midXSamples) if (paperyAt(Math.round(x).toInt(), Math.round(y + 2.0).toInt())) pap++
+                if (pap >= 4) break
+                y += 2.0
+            }
+            if (y - topY0 >= 6.0 && y <= 0.10 * sh) {
+                out[1] = y; out[3] = y
+            }
+        }
+        return orderCorners(
+            listOf(
+                out[0] to out[1], out[2] to out[3], out[4] to out[5], out[6] to out[7],
+            )
+        )
     }
 
     /**
