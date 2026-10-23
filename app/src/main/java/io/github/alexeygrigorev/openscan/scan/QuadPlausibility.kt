@@ -39,7 +39,7 @@ object QuadPlausibility {
      * and the frame itself is the right crop — not a flag (item 12: 2026-10-17
      * uploads are almost all full-bleed pages, all correctly detected).
      */
-    const val FULL_BLEED_FRAC = 0.90
+    const val FULL_BLEED_FRAC = 0.80
 
     data class Verdict(
         /** True when nothing is wrong with the quad. */

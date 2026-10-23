@@ -375,6 +375,11 @@ private object QuadDetector {
             // barely edge-aligned inner — that inner is a feature inside the
             // document (lottery box on a full-frame receipt).
             if (best.pap >= 0.85 && best.af >= 0.30 && c.af < 0.10) continue
+            // t1245u: a large paperish page/notebook (af>=0.50) must not lose to
+            // a mid-size nested text-block latch (e.g. 49e012af ~14% blob on an
+            // open notebook). Require the inner to cover at least 40% of the
+            // winner area before it may take over.
+            if (best.pap >= 0.80 && best.af >= 0.50 && c.af < 0.40 * best.af) continue
             best = c
             break
         }
