@@ -486,6 +486,15 @@ private object QuadDetector {
         if (!best.texture && best.fill < 0.15 && best.af >= 0.55) {
             quad = recoverPaperyInsetMargins(quad, hsv, sw, sh)
         }
+        // A printed table is not the page boundary. Only rescue to the frame
+        // when a nearly continuous neutral sheet fills it AND ink continues
+        // outside the elected quad. A blank desk around a small document does
+        // not provide that second piece of evidence.
+        if (polyArea(quad) < 0.85 * frameArea && framePaperish &&
+            hasFullSheetOutside(quad, hsv, rawEdges[1]!!)
+        ) {
+            quad = frameQ.copyOf()
+        }
         // (texture-rescue winners skip refinement and side extension: the mask
         // outline is already the full blob, Canny edges are unreliable on these
         // scenes, and extension grows into the smooth-but-papery table — the
@@ -701,6 +710,31 @@ private object QuadDetector {
             }
         }
         return if (total == 0) 0.0 else hit.toDouble() / total
+    }
+
+    /** A frame-filling neutral sheet with printing beyond an interior latch. */
+    private fun hasFullSheetOutside(q: DoubleArray, hsv: Mat, edges: Mat): Boolean {
+        val sheet = Mat()
+        Core.inRange(hsv, Scalar(0.0, 0.0, 120.0), Scalar(179.0, 35.0, 255.0), sheet)
+        val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(15.0, 15.0))
+        Imgproc.morphologyEx(sheet, sheet, Imgproc.MORPH_CLOSE, kernel)
+        kernel.release()
+        val coversFrame = Core.countNonZero(sheet) >= 0.98 * hsv.rows() * hsv.cols()
+        sheet.release()
+        if (!coversFrame) return false
+        val inside = Mat.zeros(hsv.rows(), hsv.cols(), org.opencv.core.CvType.CV_8UC1)
+        val polygon = MatOfPoint(*Array(4) { i -> org.opencv.core.Point(q[2 * i], q[2 * i + 1]) })
+        Imgproc.fillPoly(inside, listOf(polygon), Scalar(255.0))
+        polygon.release()
+        val margin = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(21.0, 21.0))
+        Imgproc.dilate(inside, inside, margin)
+        margin.release()
+        Core.bitwise_not(inside, inside)
+        val outsideArea = Core.countNonZero(inside)
+        Core.bitwise_and(edges, inside, inside)
+        val ink = Core.countNonZero(inside)
+        inside.release()
+        return outsideArea > 0 && ink > 0.01 * outsideArea
     }
 
     /** How paper-like the quad interior is: bright and unsaturated, 0..1. */
