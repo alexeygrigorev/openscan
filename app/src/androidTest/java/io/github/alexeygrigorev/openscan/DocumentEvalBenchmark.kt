@@ -129,7 +129,10 @@ class DocumentEvalBenchmark {
         val scale = 1024f / maxOf(src.width, src.height)
         val small = Bitmap.createScaledBitmap(
             src, (src.width * scale).roundToInt(), (src.height * scale).roundToInt(), true
-        )
+        ).let { scaled ->
+            // A same-size resize returns the immutable decoded source.
+            if (scaled === src) scaled.copy(Bitmap.Config.ARGB_8888, true) else scaled
+        }
         val canvas = Canvas(small)
         val line = Paint().apply { color = Color.GREEN; strokeWidth = 5f; style = Paint.Style.STROKE }
         val dot = Paint().apply { color = Color.RED; style = Paint.Style.FILL }
